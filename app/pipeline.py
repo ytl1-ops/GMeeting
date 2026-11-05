@@ -5,7 +5,7 @@ import shutil
 import traceback
 from pathlib import Path
 
-from . import config, db, generate, ingest, transcribe
+from . import config, db, generate, ingest, recordings, transcribe
 
 
 def _progress(mid: str):
@@ -13,18 +13,23 @@ def _progress(mid: str):
 
 
 def process(mid: str, audio_path: Path | None = None, url: str | None = None,
-            raw_text: str | None = None, prefer_subtitles: bool = True) -> None:
+            raw_text: str | None = None, prefer_subtitles: bool = True, recording: bool = False) -> None:
     """Point d'entrée unique ; reprend aussi après édition de la transcription (raw_text)."""
     meeting = db.get(mid)
     assert meeting
     progress = _progress(mid)
     workdir = config.AUDIO_DIR / mid
+    success = False
     try:
         transcript = raw_text
         lang = meeting.get("language") or None
         if transcript is None:
             db.update(mid, status="processing", error=None)
-            if url:
+            if recording:
+                progress("Assemblage de l'enregistrement…")
+                audio_path = recordings.assemble(mid, workdir / "audio.mp3")
+                db.update(mid, duration=ingest.probe_duration(audio_path))
+            elif url:
                 fetched = ingest.fetch_url(url, workdir, lang, prefer_subtitles, progress)
                 if fetched.title and not meeting.get("title"):
                     db.update(mid, title=fetched.title)
@@ -50,9 +55,11 @@ def process(mid: str, audio_path: Path | None = None, url: str | None = None,
         analysis = generate.analyze(transcript, meeting, progress)
         db.update(mid, analysis=analysis, status="done", progress="Terminé", error=None,
                   title=meeting.get("title") or analysis["titre"])
+        success = True
     except Exception as e:  # noqa: BLE001
         traceback.print_exc()
         db.update(mid, status="error", error=str(e)[:800])
     finally:
-        if not config.KEEP_AUDIO:
+        # En cas d'échec l'audio est conservé : on ne perd jamais une réunion, le traitement peut être relancé.
+        if success and not config.KEEP_AUDIO:
             shutil.rmtree(workdir, ignore_errors=True)

@@ -22,6 +22,30 @@ et obtenez automatiquement une **transcription**, puis un **procès-verbal**, un
 Excel : un onglet par tableau (Participants, Décisions, Actions filtrables) + onglet Transcription horodatée.
 La transcription est **éditable** (noms propres, acronymes) puis les 3 documents se **régénèrent** en un clic.
 
+## Compagnon de réunion en continu
+
+L'enregistreur est conçu pour **ne jamais perdre une réunion**, y compris après un appel téléphonique :
+
+* **Écriture locale d'abord** : chaque segment audio (~4 s) est stocké sur l'appareil (IndexedDB) puis envoyé au
+  serveur ; il n'est effacé qu'une fois acquitté. Réseau coupé ? L'audio s'accumule et part au retour de la connexion.
+* **Reprise automatique du micro** : si le système coupe ou occupe le micro (appel entrant, autre application), l'état
+  « interrompu » s'affiche, puis le micro est rouvert tout seul à la fin de l'appel. Si le navigateur exige un geste,
+  un bouton « Reprendre l'enregistrement » apparaît. Les interruptions sont journalisées et transmises à la rédaction.
+* **Enregistreur surveillé** : relance automatique si le système l'arrête, contexte audio réveillé, verrou d'écran
+  repris au retour au premier plan.
+* **Récupération** : page fermée ou rechargée en pleine réunion → bannière « Récupérer et générer les documents ».
+  Un enregistrement non finalisé côté serveur peut aussi être finalisé depuis sa fiche.
+* **Fin d'enregistrement hors-ligne** : la finalisation reprend seule au retour du réseau.
+* **Marqueurs ⭐** : repérez les moments importants ; ils orientent la rédaction.
+* **Indicateur REC** permanent dans l'en-tête, même en naviguant ; application **installable** (PWA) et interface
+  ouvrable hors-ligne.
+* En cas d'échec de traitement, l'audio est **conservé** et le traitement relançable (supprimé seulement après succès).
+
+**Limites des navigateurs** : un site web ne peut pas garantir l'enregistrement écran verrouillé ou application en
+arrière-plan (surtout iOS). Gardez la page ouverte et l'écran allumé ; pendant un appel, mettez l'appel en haut-parleur
+ou utilisez le micro d'un autre appareil. Un enregistrement continu en arrière-plan garanti exigerait une application
+native (non fournie). Le démarrage d'une session nécessite que le serveur soit joignable.
+
 ## Gabarit personnalisable (menu « 🎨 Gabarit »)
 
 Logo, nom de l'organisation, texte d'en-tête, pied de page, mention de confidentialité (en rouge) et couleur des
@@ -69,4 +93,6 @@ Ou avec Docker : `docker build -t gmeeting . && docker run -p 8000:8000 -v gmeet
 
 ```bash
 pip install -r requirements-dev.txt && pytest
+# Scénarios navigateur (appel, coupure réseau, rechargement…) – nécessite playwright :
+python tests/e2e/run_stub.py &  node tests/e2e/continuity.js
 ```

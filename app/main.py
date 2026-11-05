@@ -12,7 +12,11 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import branding, config, db, exporters, generate, pipeline, transcribe
+import shutil
+
+from fastapi import Request
+
+from . import branding, config, db, exporters, generate, pipeline, recordings, transcribe
 
 STATIC = Path(__file__).parent / "static"
 basic = HTTPBasic(auto_error=False)
@@ -110,6 +114,62 @@ def from_text(body: TextIn, bg: BackgroundTasks):
     return {"id": m["id"]}
 
 
+# ------------------------------------------------------------------ enregistrement continu
+class RecStart(BaseModel):
+    title: str = ""
+    meeting_date: str = ""
+    location: str = ""
+    participants: str = ""
+    context: str = ""
+    language: str = ""
+
+
+@app.post("/api/recordings")
+def rec_start(body: RecStart):
+    """Ouvre une session d'enregistrement : l'audio arrive ensuite segment par segment."""
+    m = _create(body.title, body.meeting_date, body.location, body.participants, body.context, body.language, "record")
+    db.update(m["id"], status="recording", progress="Enregistrement en cours")
+    return {"id": m["id"]}
+
+
+@app.put("/api/recordings/{mid}/parts/{part}/chunks/{seq}")
+async def rec_chunk(mid: str, part: int, seq: int, request: Request):
+    m = _meeting(mid)
+    if m["status"] != "recording":
+        raise HTTPException(409, "Cet enregistrement n'accepte plus de segments")
+    if not (0 <= part < 1000 and 0 <= seq < 1_000_000):
+        raise HTTPException(422, "Indices invalides")
+    data = await request.body()
+    if not data or len(data) > recordings.MAX_CHUNK_BYTES:
+        raise HTTPException(422, "Segment vide ou trop volumineux")
+    recordings.write_chunk(mid, part, seq, data)
+    return {"ok": True}
+
+
+class RecFinish(BaseModel):
+    meta: dict[str, str] = {}
+    markers: list[float] = []
+    interruptions: list[dict] = []
+
+
+@app.post("/api/recordings/{mid}/finish")
+def rec_finish(mid: str, body: RecFinish, bg: BackgroundTasks):
+    """Termine l'enregistrement et lance transcription + rédaction. Rejouable après un échec."""
+    m = _meeting(mid)
+    if m["status"] not in ("recording", "error"):
+        raise HTTPException(409, "Enregistrement déjà en cours de traitement ou terminé")
+    if recordings.info(mid)["chunks"] == 0:
+        raise HTTPException(409, "Aucun audio reçu pour cet enregistrement")
+    fields = {k: v.strip() for k, v in body.meta.items()
+              if k in {"title", "meeting_date", "location", "participants", "context", "language"} and v.strip()}
+    notes = recordings.session_notes(body.markers, body.interruptions)
+    if notes and "Moments marqués" not in (m.get("context") or "") and "Interruptions techniques" not in (m.get("context") or ""):
+        fields["context"] = ((fields.get("context") or m.get("context") or "") + "\n\n" + notes).strip()
+    db.update(mid, status="queued", progress="En file d'attente", error=None, **fields)
+    bg.add_task(pipeline.process, mid, recording=True)
+    return {"id": mid}
+
+
 # ------------------------------------------------------------------ lecture / édition
 @app.get("/api/config")
 def get_config():
@@ -125,7 +185,10 @@ def list_meetings():
 
 @app.get("/api/meetings/{mid}")
 def get_meeting(mid: str):
-    return _meeting(mid)
+    m = _meeting(mid)
+    if m["status"] == "recording":
+        m["rec_info"] = recordings.info(mid)
+    return m
 
 
 class PatchIn(BaseModel):
@@ -163,6 +226,7 @@ def regenerate(mid: str, bg: BackgroundTasks):
 def delete_meeting(mid: str):
     _meeting(mid)
     db.delete(mid)
+    shutil.rmtree(config.AUDIO_DIR / mid, ignore_errors=True)
     return {"ok": True}
 
 

@@ -3,7 +3,7 @@
 
 const $app = document.getElementById("app");
 const DOC_LABELS = { pv: "Procès-verbal", cr: "Compte rendu", note: "Note de synthèse" };
-const STATUS = { pending: "En attente", queued: "En file", processing: "Traitement", analyzing: "Rédaction", done: "Prêt", error: "Erreur" };
+const STATUS = { recording: "Enregistrement", pending: "En attente", queued: "En file", processing: "Traitement", analyzing: "Rédaction", done: "Prêt", error: "Erreur" };
 
 function el(tag, attrs = {}, ...kids) {
   const n = document.createElement(tag);
@@ -33,7 +33,8 @@ const fmtDate = (iso) => new Date(iso).toLocaleString("fr-FR", { dateStyle: "med
 
 let stopPoll = () => {}, stopRecorderCleanup = () => {};
 window.addEventListener("hashchange", route);
-window.addEventListener("beforeunload", (e) => { if (Recorder.active) { e.preventDefault(); e.returnValue = ""; } });
+let live = null; // session d'enregistrement active (survit à la navigation entre pages)
+window.addEventListener("beforeunload", (e) => { if (live?.active) { e.preventDefault(); e.returnValue = ""; } });
 
 async function route() {
   stopPoll(); stopRecorderCleanup();
@@ -41,59 +42,6 @@ async function route() {
   if (location.hash === "#/brand") await viewBrand();
   else m ? await viewMeeting(m[1]) : await viewHome();
 }
-
-/* ============================================================ ENREGISTREUR */
-const Recorder = {
-  active: false, rec: null, chunks: [], stream: null, ctx: null, raf: 0, t0: 0, acc: 0, paused: false, tick: 0, wake: null,
-  mime() { return ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"].find((t) => MediaRecorder.isTypeSupported(t)) || ""; },
-  async start(withTab, onLevel, onEnded) {
-    if (!navigator.mediaDevices || !window.MediaRecorder) throw new Error("Enregistrement non supporté par ce navigateur.");
-    const mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
-    this.ctx = new AudioContext();
-    const dest = this.ctx.createMediaStreamDestination();
-    const analyser = this.ctx.createAnalyser(); analyser.fftSize = 512;
-    const micSrc = this.ctx.createMediaStreamSource(mic);
-    micSrc.connect(dest); micSrc.connect(analyser);
-    this.extra = [mic];
-    if (withTab) {
-      const disp = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-      if (!disp.getAudioTracks().length) {
-        disp.getTracks().forEach((t) => t.stop()); mic.getTracks().forEach((t) => t.stop());
-        throw new Error("Aucun son partagé. Dans la fenêtre de partage, choisissez un onglet (Chrome/Edge) et cochez « Partager l'audio de l'onglet ».");
-      }
-      const dSrc = this.ctx.createMediaStreamSource(new MediaStream(disp.getAudioTracks()));
-      dSrc.connect(dest); dSrc.connect(analyser);
-      disp.getVideoTracks()[0].addEventListener("ended", () => onEnded && onEnded());
-      this.extra.push(disp);
-    }
-    this.stream = dest.stream;
-    this.chunks = [];
-    const mime = this.mime();
-    this.rec = new MediaRecorder(this.stream, mime ? { mimeType: mime } : undefined);
-    this.rec.ondataavailable = (e) => e.data.size && this.chunks.push(e.data);
-    this.rec.start(5000);
-    this.active = true; this.paused = false; this.t0 = Date.now(); this.acc = 0;
-    try { this.wake = await navigator.wakeLock?.request("screen"); } catch {}
-    const buf = new Uint8Array(analyser.frequencyBinCount);
-    const loop = () => { analyser.getByteTimeDomainData(buf); let p = 0; for (const v of buf) p = Math.max(p, Math.abs(v - 128)); onLevel(p / 128); this.raf = requestAnimationFrame(loop); };
-    loop();
-  },
-  elapsed() { return this.acc + (this.paused ? 0 : Date.now() - this.t0); },
-  pause() { this.rec.pause(); this.acc += Date.now() - this.t0; this.paused = true; },
-  resume() { this.rec.resume(); this.t0 = Date.now(); this.paused = false; },
-  stop() {
-    return new Promise((resolve) => {
-      const type = this.rec.mimeType || "audio/webm";
-      this.rec.onstop = () => { this.release(); resolve(new Blob(this.chunks, { type })); };
-      if (this.rec.state !== "inactive") this.rec.stop(); else this.rec.onstop();
-    });
-  },
-  release() {
-    cancelAnimationFrame(this.raf); this.active = false;
-    (this.extra || []).forEach((s) => s.getTracks().forEach((t) => t.stop()));
-    this.ctx?.close(); this.wake?.release?.();
-  },
-};
 
 /* ============================================================ ACCUEIL */
 function metaFields() {
@@ -142,6 +90,7 @@ async function viewHome() {
     el("div", { class: "card" }, tabs, panel, metaFields()),
     el("div", { class: "card" }, el("h2", {}, "Mes réunions"), list));
   show("rec");
+  orphanBanner();
   try {
     const all = await api("/meetings");
     list.replaceChildren(...(all.length ? all.map((m) => el("li", {}, el("a", { href: "#/m/" + m.id },
@@ -151,53 +100,111 @@ async function viewHome() {
   loadConfig();
 }
 
+const STATE_MSG = {
+  interrupted: "⚠ Micro interrompu (appel en cours ?). L'enregistrement reprendra tout seul à la fin de l'appel — gardez cette page ouverte.",
+  paused: "⏸ En pause.",
+  "needs-tap": "Le navigateur demande une confirmation pour rouvrir le micro.",
+};
+
+/** Enregistrements locaux non terminés (page fermée ou rechargée en cours de réunion) : on propose de les récupérer. */
+async function orphanBanner() {
+  const items = await GRec.orphans(live?.id);
+  const card = $app.querySelector(".card");
+  for (const o of items.reverse()) {
+    const box = el("div", { class: "alert", role: "alert" });
+    const go = el("button", { class: "btn" }, "Récupérer et générer les documents");
+    go.onclick = async () => {
+      go.disabled = true;
+      try { await GRec.requestFinish(o.id, o.payload); location.hash = "#/m/" + o.id; route(); }
+      catch (e) { toast("Envoi impossible pour l'instant (" + e.message + "). Réessayez avec une connexion."); go.disabled = false; }
+    };
+    const drop = el("button", { class: "btn danger" }, "Supprimer");
+    drop.onclick = async () => { if (!confirm("Supprimer définitivement cet enregistrement ?")) return; await GRec.discard(o.id); fetch("/api/meetings/" + o.id, { method: "DELETE" }).catch(() => {}); box.remove(); };
+    box.append(el("strong", {}, "⚠ Un enregistrement n'a pas été terminé"), el("br"),
+      `« ${o.meta?.title || "Sans titre"} », démarré le ${fmtDate(o.startedAt)}. ` +
+      (o.pending ? `${o.pending} segment(s) audio sont conservés sur cet appareil et n'ont pas encore été envoyés. ` : "Tout l'audio a été envoyé. "),
+      el("div", { class: "row", style: "margin-top:10px" }, go, drop));
+    card.before(box);
+  }
+}
+
 function recPanel() {
-  const timer = el("div", { class: "timer" }, "00:00:00");
+  const timer = el("div", { class: "timer", "aria-live": "off" }, "00:00:00");
   const meter = el("div", { class: "meter" }, el("i"));
   const btn = el("button", { class: "rec-btn", "aria-label": "Démarrer l'enregistrement" }, "REC");
   const pauseBtn = el("button", { class: "btn sec", hidden: true }, "⏸ Pause");
+  const markBtn = el("button", { class: "btn sec", hidden: true, title: "Repérer un moment important" }, "⭐ Marquer");
   const stopBtn = el("button", { class: "btn", hidden: true }, "⏹ Terminer et générer");
-  const info = el("p", { class: "hint" });
+  const tapBtn = el("button", { class: "btn", hidden: true, style: "background:var(--rec);border-color:var(--rec)" }, "🎙 Reprendre l'enregistrement");
+  const banner = el("div", { class: "rec-banner", role: "status", hidden: true });
+  const net = el("p", { class: "hint", role: "status" });
+  const log = el("ul", { class: "hint", style: "list-style:none;padding:0;margin:6px 0" });
   const mode = el("select", { id: "rec-mode", "aria-label": "Source audio" },
-    el("option", { value: "mic" }, "Micro seul (réunion en présentiel)"),
-    el("option", { value: "tab" }, "Micro + audio de l'onglet (Teams/Meet/Zoom web)"));
-  const result = el("div");
-  let iv = 0;
+    el("option", { value: "mic" }, "Micro seul (présentiel, téléphone)"),
+    el("option", { value: "tab" }, "Micro + audio de l'onglet (visio web)"));
+  let iv = 0, unsub = () => {};
 
-  const finish = async () => {
-    clearInterval(iv);
-    const blob = await Recorder.stop();
-    btn.hidden = false; btn.classList.remove("live"); pauseBtn.hidden = stopBtn.hidden = true; mode.disabled = false; meter.firstChild.style.width = "0";
-    const ext = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : "webm";
-    const url = URL.createObjectURL(blob);
-    const send = el("button", { class: "btn" }, "Générer les documents");
-    send.onclick = () => submitForm("/meetings/audio", () => {
-      const fd = new FormData(); const m = meta();
-      fd.append("file", blob, `reunion.${ext}`); fd.append("source_type", "record");
-      for (const [k, v] of Object.entries(m)) fd.append(k, v);
-      return { method: "POST", body: fd };
-    }, send);
-    result.replaceChildren(el("div", { class: "card", style: "background:var(--bg)" },
-      el("strong", {}, `Enregistrement terminé (${fmtDur(timer.dataset.s)})`),
-      el("audio", { controls: true, src: url, style: "width:100%;margin:10px 0" }),
-      el("div", { class: "row" }, send, el("a", { class: "btn sec", href: url, download: `reunion.${ext}` }, "Sauvegarder l'audio"))));
+  const ui = (running) => {
+    btn.hidden = running; pauseBtn.hidden = markBtn.hidden = stopBtn.hidden = !running; mode.disabled = running;
+    btn.classList.toggle("live", running);
+    if (!running) { meter.firstChild.style.width = "0"; banner.hidden = true; tapBtn.hidden = true; }
+  };
+  const say = (msg) => { if (!msg) return; const t = new Date().toLocaleTimeString("fr-FR"); log.append(el("li", {}, `${t} — ${msg}`)); };
+  const showState = (st) => {
+    banner.hidden = !STATE_MSG[st]; banner.textContent = STATE_MSG[st] || ""; banner.className = "rec-banner " + st;
+    tapBtn.hidden = st !== "needs-tap";
+    pauseBtn.textContent = st === "paused" ? "▶ Reprendre" : "⏸ Pause";
+    if (st === "interrupted") say("Interruption du micro");
+  };
+  const showNet = async () => {
+    if (!live) return; const n = await GRec.pendingCount(live.id);
+    net.textContent = !navigator.onLine ? `Hors connexion — l'audio est conservé sur cet appareil et sera envoyé au retour du réseau (${n} segment(s) en attente).`
+      : n > 3 ? `Envoi en cours… ${n} segment(s) en attente.` : "";
   };
 
   btn.onclick = async () => {
-    try {
-      result.replaceChildren();
-      await Recorder.start(mode.value === "tab", (l) => (meter.firstChild.style.width = Math.min(100, l * 140) + "%"), () => Recorder.active && finish());
-    } catch (e) { toast(e.message); return; }
-    btn.hidden = true; pauseBtn.hidden = stopBtn.hidden = false; mode.disabled = true; btn.classList.add("live");
-    info.textContent = "Enregistrement en cours — gardez cet onglet ouvert.";
-    iv = setInterval(() => { const s = Recorder.elapsed() / 1000; timer.dataset.s = s; timer.textContent = new Date(s * 1000).toISOString().substr(11, 8); }, 250);
+    if (!GRec.Session.supported()) return toast("Enregistrement non supporté par ce navigateur.");
+    btn.disabled = true;
+    const s = new GRec.Session({
+      onState: showState,
+      onLevel: (l) => (meter.firstChild.style.width = Math.min(100, l * 140) + "%"),
+      onEvent: (m) => say(m),
+    });
+    try { await s.start(meta(), mode.value === "tab"); }
+    catch (e) { toast(e.message); btn.disabled = false; return; }
+    live = s; btn.disabled = false; ui(true); log.replaceChildren();
+    iv = setInterval(() => { const sec = s.elapsed(); timer.dataset.s = sec; timer.textContent = new Date(sec * 1000).toISOString().substr(11, 8); showNet(); }, 500);
+    unsub = GRec.onProgress(showNet);
   };
-  pauseBtn.onclick = () => { Recorder.paused ? Recorder.resume() : Recorder.pause(); pauseBtn.textContent = Recorder.paused ? "▶ Reprendre" : "⏸ Pause"; };
-  stopBtn.onclick = finish;
-  stopRecorderCleanup = () => { clearInterval(iv); if (Recorder.active) Recorder.stop(); };
-  return el("div", { class: "rec-box" }, el("div", { class: "row", style: "justify-content:center" }, mode), timer, meter,
-    el("div", { class: "row", style: "justify-content:center;margin:12px 0" }, btn, pauseBtn, stopBtn), info,
-    el("p", { class: "hint" }, "L'accès au micro exige HTTPS ou localhost. Pour capturer une visio, choisissez « Micro + audio de l'onglet » puis partagez l'onglet de la réunion en cochant l'audio."), result);
+  pauseBtn.onclick = () => (live.state === "paused" ? live.resume() : live.pause());
+  markBtn.onclick = () => { const n = live.mark(); say(`⭐ Repère n°${n} à ${timer.textContent}`); toast("Moment marqué ⭐"); };
+  tapBtn.onclick = () => live.recover(true);
+  stopBtn.onclick = async () => {
+    stopBtn.disabled = true; const s = live;
+    try {
+      const done = await s.finish(meta());
+      live = null; clearInterval(iv); unsub();
+      location.hash = "#/m/" + s.id;
+      if (!done) toast("Enregistrement terminé.");
+    } catch (e) {
+      // réseau absent : tout est conservé localement et sera finalisé automatiquement au retour de la connexion
+      live = null; clearInterval(iv); unsub(); ui(false);
+      toast("Enregistrement terminé. Envoi en attente de connexion : il reprendra automatiquement.");
+      route();
+    }
+  };
+  // revenir sur l'onglet Enregistrer pendant une session en cours : on rebranche l'interface sur la session active
+  if (live?.active) {
+    live.onState = showState; live.onLevel = (l) => (meter.firstChild.style.width = Math.min(100, l * 140) + "%"); live.onEvent = say;
+    ui(true); showState(live.state); const s = live;
+    iv = setInterval(() => { const sec = s.elapsed(); timer.textContent = new Date(sec * 1000).toISOString().substr(11, 8); showNet(); }, 500);
+    unsub = GRec.onProgress(showNet);
+  }
+  stopRecorderCleanup = () => { clearInterval(iv); unsub(); }; // la session continue même si l'on change de page
+  return el("div", { class: "rec-box" }, el("div", { class: "row", style: "justify-content:center" }, mode), timer, meter, banner,
+    el("div", { class: "row", style: "justify-content:center;margin:12px 0" }, btn, pauseBtn, markBtn, stopBtn), tapBtn, net, log,
+    el("p", { class: "hint" }, "L'audio est écrit sur l'appareil puis envoyé en continu : une coupure réseau, un appel téléphonique ou la fermeture de la page ne font pas perdre l'enregistrement. " +
+      "Gardez la page ouverte et l'écran allumé. L'accès au micro exige HTTPS ou localhost."));
 }
 
 function urlPanel() {
@@ -252,14 +259,26 @@ async function viewMeeting(id) {
   stopPoll = () => (polling = false);
 
   const render = async () => {
-    const key = [m.status, m.progress, tab, m.analysis ? 1 : 0].join("|");
+    const key = [m.status, m.progress, tab, m.analysis ? 1 : 0, m.rec_info?.chunks].join("|");
     if (key === lastKey) return; lastKey = key;
     head.replaceChildren(el("h1", {}, m.title || "Réunion sans titre"),
       el("p", { class: "hint" }, fmtDate(m.created_at) + (m.duration ? " · " + fmtDur(m.duration) : "") + (m.source_url ? " · " + m.source_url : "")));
+    if (m.status === "recording") {
+      const ri = m.rec_info || {}, mine = live?.id === m.id && live.active;
+      body.replaceChildren(el("div", { class: "card" },
+        el("strong", {}, mine ? "● Enregistrement en cours sur cet appareil" : "Enregistrement non finalisé"), el("br"),
+        el("span", { class: "hint" }, `${ri.chunks || 0} segment(s) reçus` + (ri.last_chunk_age != null ? ` · dernier il y a ${ri.last_chunk_age} s` : "")),
+        mine ? el("p", {}, el("a", { href: "#/" }, "Retour à l'enregistreur")) :
+          el("div", { class: "row", style: "margin-top:12px" },
+            el("button", { class: "btn", onclick: () => finishRecording(id) }, "Finaliser et générer les documents"),
+            el("button", { class: "btn danger", onclick: () => del(id) }, "Supprimer"))));
+      return;
+    }
     if (m.status === "error") {
       body.replaceChildren(el("div", { class: "card" }, el("div", { class: "err" }, m.error || "Erreur inconnue"),
         el("div", { class: "row", style: "margin-top:12px" },
           m.transcript ? el("button", { class: "btn", onclick: () => regenerate(id) }, "Relancer la rédaction") : null,
+          !m.transcript && m.source_type === "record" ? el("button", { class: "btn", onclick: () => finishRecording(id) }, "Relancer le traitement (audio conservé)") : null,
           el("button", { class: "btn danger", onclick: () => del(id) }, "Supprimer"))));
       return;
     }
@@ -408,7 +427,24 @@ function infosView(host) {
       el("button", { class: "btn danger", onclick: () => del(m.id) }, "Supprimer")));
 }
 
+async function finishRecording(id) {
+  try { await api(`/recordings/${id}/finish`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }); route(); }
+  catch (e) { toast(e.message); }
+}
 async function regenerate(id) { try { await api(`/meetings/${id}/regenerate`, { method: "POST" }); location.hash = "#/m/" + id; route(); } catch (e) { toast(e.message); } }
 async function del(id) { if (!confirm("Supprimer définitivement cette réunion et ses documents ?")) return; try { await api("/meetings/" + id, { method: "DELETE" }); location.hash = "#/"; } catch (e) { toast(e.message); } }
 
+/* ---- indicateur d'enregistrement visible sur toutes les pages ---- */
+const recbar = document.getElementById("recbar");
+setInterval(() => {
+  if (!live?.active) { recbar.hidden = true; return; }
+  recbar.hidden = false;
+  recbar.className = "recbar" + (live.state === "recording" ? "" : " warn");
+  const t = new Date(live.elapsed() * 1000).toISOString().substr(11, 8);
+  recbar.textContent = ({ interrupted: "⚠ Interrompu ", paused: "⏸ Pause ", "needs-tap": "⚠ Toucher pour reprendre " }[live.state] || "● REC ") + t;
+}, 1000);
+
+/* ---- application installable + ouverture hors-ligne ---- */
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+GRec.resumePending();   // termine d'éventuelles fins d'enregistrement restées en attente (réseau absent)
 route();
