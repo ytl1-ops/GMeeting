@@ -33,6 +33,12 @@ const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) fails++
   await p.setInputFiles('.att-cards ~ *, input[aria-label="Ajouter des pièces jointes"]', [path.join(D, 'plan.png')]); await sleep(1200);
   ok(await p.$$eval('.att-card', e => e.length) === 4, 'ajout d\'une pièce sur une réunion existante');
 
+  // la pièce ajoutée APRÈS la rédaction doit être signalée, puis prise en compte par la régénération
+  await p.waitForSelector('.alert:has-text("pièces jointes ont changé")', { timeout: 12000 });
+  ok(true, 'bandeau « les pièces jointes ont changé depuis la rédaction » affiché');
+  await p.click('.alert button:has-text("Régénérer maintenant")');
+  await p.waitForSelector('.tabs .tab', { timeout: 30000 }); await sleep(600);
+  ok(await p.$$eval('.alert:has-text("pièces jointes ont changé")', e => e.length) === 0, 'après régénération : plus de bandeau');
   await p.click('.tab:text-is("Procès-verbal")'); await p.waitForSelector('.annex-toggle');
   ok(await p.$eval('.doc', e => e.textContent.includes('Annexes — pièces jointes') && e.textContent.includes('Annexe 1')), 'aperçu : annexes présentes');
   ok(await p.$$eval('.doc figure img', e => e.length) === 1, 'aperçu : image insérée');

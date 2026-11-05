@@ -26,7 +26,7 @@ def model_summaries(atts: list[dict], analysis: dict) -> dict[str, str]:
             by_name[str(e["nom"]).strip().lower()] = r
     out = {}
     for i, a in enumerate(atts, 1):
-        r = by_num.get(i) or by_name.get(a["name"].strip().lower())
+        r = by_num.get(a.get("n", i)) or by_name.get(a["name"].strip().lower())
         if r:
             out[a["id"]] = r
     return out
@@ -58,8 +58,9 @@ def build_blocks(atts: list[dict], analysis: dict, rows_limit: int = 25, cols_li
     summ = summaries(atts, analysis)
     b: list[Block] = [{"t": "pagebreak"}, {"t": "h", "text": "Annexes — pièces jointes"}]
     b.append({"t": "table", "name": "Annexes", "headers": ["N°", "Pièce jointe", "Type", "Résumé"], "widths": [0.07, 0.3, 0.18, 0.45],
-              "rows": [[str(i), a["name"], a["label"], summ[a["id"]]] for i, a in enumerate(atts, 1)]})
-    for i, a in enumerate(atts, 1):
+              "rows": [[str(a.get("n", i)), a["name"], a["label"], summ[a["id"]]] for i, a in enumerate(atts, 1)]})
+    for i0, a in enumerate(atts, 1):
+        i = a.get("n", i0)                                  # même numéro que les citations « PJ n » du rapport
         x = a["extract"]
         b.append({"t": "h2", "text": f"Annexe {i} — {a['name']}"})
         if x.get("meta"):
@@ -87,3 +88,74 @@ def build_blocks(atts: list[dict], analysis: dict, rows_limit: int = 25, cols_li
         if x.get("note"):
             b.append({"t": "p", "text": x["note"]})
     return b
+
+
+# ------------------------------------------------------------------ renfort du rapport par les pièces jointes
+CONSTAT = {"confirme": "Confirmé", "ecart": "Écart", "complement": "Complément"}
+STATUT = {"soldee": "Soldée", "en_cours": "En cours", "reportee": "Reportée", "non_evoquee": "Non évoquée"}
+
+
+def _nums(pj) -> list[int]:
+    return sorted({int(n) for n in (pj or []) if isinstance(n, (int, float)) and not isinstance(n, bool) and 0 < n < 1000})
+
+
+def tag(pj) -> str:
+    """« PJ 2, PJ 3 » : sources d'un élément du rapport."""
+    return ", ".join(f"PJ {n}" for n in _nums(pj))
+
+
+def cite(text: str, pj) -> str:
+    t = tag(pj)
+    return f"{text} [{t}]" if t else text
+
+
+def names(analysis: dict) -> dict[int, str]:
+    return {int(e["numero"]): str(e.get("nom") or "") for e in analysis.get("annexes") or []
+            if isinstance(e.get("numero"), int) and e.get("nom")}
+
+
+def cited(analysis: dict) -> set[int]:
+    """Numéros de toutes les pièces citées dans le rapport."""
+    out: set[int] = set()
+    for key in ("points_abordes", "decisions", "actions", "suivi_anterieur", "recoupements"):
+        for it in analysis.get(key) or []:
+            out |= set(_nums(it.get("pj") if key not in ("suivi_anterieur", "recoupements") else [it.get("pj")]))
+    return out
+
+
+def sources_line(pj, analysis: dict) -> str:
+    nm = names(analysis)
+    return "Sources : " + ", ".join(f"PJ {n}" + (f" ({nm[n]})" if n in nm else "") for n in _nums(pj))
+
+
+def recoupement_table(analysis: dict) -> Block | None:
+    items = analysis.get("recoupements") or []
+    if not items:
+        return None
+    order = {"ecart": 0, "complement": 1, "confirme": 2}
+    items = sorted(items, key=lambda r: order.get(r.get("constat"), 3))
+    return {"t": "table", "name": "Recoupement", "headers": ["Sujet", "En réunion", "Pièce jointe", "Constat"], "widths": [0.2, 0.28, 0.37, 0.15],
+            "rows": [[r.get("sujet", ""), r.get("en_reunion", ""),
+                      (f"PJ {r['pj']} : " if r.get("pj") else "") + r.get("dans_piece_jointe", ""),
+                      CONSTAT.get(r.get("constat"), "")] for r in items]}
+
+
+def suivi_table(analysis: dict) -> Block | None:
+    items = analysis.get("suivi_anterieur") or []
+    if not items:
+        return None
+    return {"t": "table", "name": "Suivi antérieur", "headers": ["Action antérieure", "Responsable", "Statut", "Commentaire", "Source"],
+            "widths": [0.33, 0.15, 0.13, 0.29, 0.1],
+            "rows": [[r.get("action", ""), r.get("responsable", "") or "—", STATUT.get(r.get("statut"), ""), r.get("commentaire", ""),
+                      f"PJ {r['pj']}" if r.get("pj") else ""] for r in items]}
+
+
+def tail_blocks(atts: list[dict], analysis: dict, rows_limit: int = 25, cols_limit: int = 8) -> list[Block]:
+    """Fin de rapport : annexes complètes ; sans annexes, la liste des pièces citées (pour que « PJ 2 » reste compréhensible)."""
+    if atts:
+        return build_blocks(atts, analysis, rows_limit, cols_limit)
+    nm, nums = names(analysis), sorted(cited(analysis))
+    if not nums:
+        return []
+    return [{"t": "h", "text": "Pièces jointes citées"},
+            {"t": "bullets", "items": [f"PJ {n}" + (f" — {nm[n]}" if n in nm else "") for n in nums]}]

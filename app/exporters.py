@@ -23,6 +23,8 @@ FORMATS = {
 NAVY = "1F3A5F"  # couleur par défaut ; surchargée par le gabarit (branding)
 PRIO_ORDER = {"haute": 0, "moyenne": 1, "basse": 2}
 
+from . import annexes
+
 Block = dict[str, Any]
 DEFAULT_BRAND: dict[str, Any] = {"org_name": "", "header_right": "", "footer": "", "confidential": "",
                                  "color": NAVY, "logo": None, "logo_size": None}
@@ -60,7 +62,7 @@ def _decisions_table(a: dict) -> Block | None:
         return None
     return {"t": "table", "name": "Décisions", "headers": ["N°", "Décision", "Responsable"],
             "widths": [0.08, 0.67, 0.25],
-            "rows": [[str(i), d.get("decision", ""), d.get("responsable", "") or "—"]
+            "rows": [[str(i), annexes.cite(d.get("decision", ""), d.get("pj")), d.get("responsable", "") or "—"]
                      for i, d in enumerate(a["decisions"], 1)]}
 
 
@@ -70,7 +72,7 @@ def _actions_table(a: dict) -> Block | None:
     acts = sorted(a["actions"], key=lambda x: PRIO_ORDER.get(x.get("priorite", "moyenne"), 1))
     return {"t": "table", "name": "Actions", "headers": ["N°", "Action", "Responsable", "Échéance", "Priorité"],
             "widths": [0.07, 0.43, 0.2, 0.17, 0.13],
-            "rows": [[str(i), x.get("action", ""), x.get("responsable", "") or "À définir",
+            "rows": [[str(i), annexes.cite(x.get("action", ""), x.get("pj")), x.get("responsable", "") or "À définir",
                       x.get("echeance", "") or "À définir", (x.get("priorite") or "moyenne").capitalize()]
                      for i, x in enumerate(acts, 1)]}
 
@@ -100,6 +102,8 @@ def build_pv(a: dict) -> list[Block]:
             b.append({"t": "h2", "text": f"{i}. {p.get('sujet', '')}"})
             if p.get("discussion"):
                 b.append({"t": "p", "text": p["discussion"]})
+            if annexes.tag(p.get("pj")):
+                b.append({"t": "p", "text": annexes.sources_line(p["pj"], a)})
             if p.get("positions"):
                 b.append({"t": "p", "text": "Positions exprimées :", "bold": True})
                 b.append({"t": "bullets", "items": p["positions"]})
@@ -108,6 +112,8 @@ def build_pv(a: dict) -> list[Block]:
                 b.append({"t": "bullets", "items": p["decisions"]})
     _section(b, "Relevé des décisions", _decisions_table(a))
     _section(b, "Plan d'actions", _actions_table(a))
+    _section(b, "Suivi des actions antérieures", annexes.suivi_table(a))
+    _section(b, "Recoupement avec les pièces jointes", annexes.recoupement_table(a))
     _section(b, "Points de vigilance", _bullets(a["risques_vigilance"]))
     _section(b, "Questions restées ouvertes", _bullets(a["questions_ouvertes"]))
     if a["prochaine_reunion"]:
@@ -127,8 +133,12 @@ def build_cr(a: dict) -> list[Block]:
             b.append({"t": "h2", "text": p.get("sujet", "")})
             if p.get("discussion"):
                 b.append({"t": "p", "text": p["discussion"]})
+            if annexes.tag(p.get("pj")):
+                b.append({"t": "p", "text": annexes.sources_line(p["pj"], a)})
     _section(b, "Décisions", _decisions_table(a))
     _section(b, "Actions à mener", _actions_table(a))
+    _section(b, "Suivi des actions antérieures", annexes.suivi_table(a))
+    _section(b, "Recoupement avec les pièces jointes", annexes.recoupement_table(a))
     _section(b, "Points de vigilance", _bullets(a["risques_vigilance"]))
     if a["prochaine_reunion"]:
         _section(b, "Prochaine réunion", {"t": "p", "text": a["prochaine_reunion"]})
@@ -141,11 +151,13 @@ def build_note(a: dict) -> list[Block]:
     _section(b, "Enjeux", _bullets(a["enjeux"]))
     if a["points_abordes"]:
         _section(b, "Points clés", _bullets([
-            p.get("sujet", "") + (f" — {_first_sentence(p['discussion'])}" if p.get("discussion") else "")
+            annexes.cite(p.get("sujet", "") + (f" — {_first_sentence(p['discussion'])}" if p.get("discussion") else ""), p.get("pj"))
             for p in a["points_abordes"]]))
     _section(b, "Décisions prises", _bullets([d.get("decision", "") + (f" ({d['responsable']})" if d.get("responsable") else "")
                                               for d in a["decisions"]]))
     _section(b, "Risques et points de vigilance", _bullets(a["risques_vigilance"]))
+    _section(b, "Recoupement avec les pièces jointes", annexes.recoupement_table(a))
+    _section(b, "Suivi des actions antérieures", annexes.suivi_table(a))
     _section(b, "Actions prioritaires", _actions_table(a))
     _section(b, "Recommandations / arbitrages attendus", _bullets(a["recommandations"]))
     _section(b, "Questions ouvertes", _bullets(a["questions_ouvertes"]))
@@ -182,8 +194,9 @@ def render_pdf(blocks: list[Block], footer: str, brand: dict, assets: dict[str, 
     st = {
         "title": ParagraphStyle("t", parent=ss["Title"], fontSize=20, textColor=navy, spaceAfter=4, alignment=TA_CENTER),
         "subtitle": ParagraphStyle("s", parent=ss["Heading2"], fontSize=13, alignment=TA_CENTER, textColor=colors.HexColor("#444444"), spaceAfter=12),
-        "h": ParagraphStyle("h", parent=ss["Heading2"], fontSize=13, textColor=navy, spaceBefore=14, spaceAfter=6),
-        "h2": ParagraphStyle("h2", parent=ss["Heading3"], fontSize=11, textColor=colors.HexColor("#2d2d2d"), spaceBefore=8, spaceAfter=3),
+        # keepWithNext : un titre n'est jamais seul en bas de page, séparé de son contenu
+        "h": ParagraphStyle("h", parent=ss["Heading2"], fontSize=13, textColor=navy, spaceBefore=14, spaceAfter=6, keepWithNext=1),
+        "h2": ParagraphStyle("h2", parent=ss["Heading3"], fontSize=11, textColor=colors.HexColor("#2d2d2d"), spaceBefore=8, spaceAfter=3, keepWithNext=1),
     }
     width = A4[0] - 4 * cm
 
@@ -531,11 +544,10 @@ def export(analysis: dict, doc_type: str, fmt: str, transcript: str | None = Non
         ascii_title = unicodedata.normalize("NFKD", analysis["titre"]).encode("ascii", "ignore").decode()
         slug = re.sub(r"[^A-Za-z0-9]+", "_", ascii_title).strip("_")[:50] or "reunion"
         return data, FORMATS["pptx"], f"{'PRESENTATION_ILLUSTREE' if visual else 'PRESENTATION'}_{slug}.pptx"
-    from . import annexes
     atts = attachments or []
     # Excel : tableaux d'annexes complets (un onglet chacun) ; PDF/Word : extraits lisibles
-    blocks = BUILDERS[doc_type](analysis) + annexes.build_blocks(atts, analysis, rows_limit=200 if fmt == "xlsx" else 25,
-                                                                  cols_limit=20 if fmt == "xlsx" else 8)
+    blocks = BUILDERS[doc_type](analysis) + annexes.tail_blocks(atts, analysis, rows_limit=200 if fmt == "xlsx" else 25,
+                                                                 cols_limit=20 if fmt == "xlsx" else 8)
     assets = {a["id"]: a["image_bytes"] for a in atts if a.get("image_bytes")}
     if fmt == "pdf":
         data = render_pdf(blocks, footer, brand, assets)

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import shutil
+from datetime import datetime
 import traceback
 from pathlib import Path
 
@@ -55,7 +56,8 @@ def process(mid: str, audio_path: Path | None = None, url: str | None = None,
         atts = attachments.for_report(mid)      # pièces jointes incluses : contexte de référence pour la rédaction
         analysis = generate.analyze(transcript, meeting, progress, **({"attachments": atts} if atts else {}))
         db.update(mid, analysis=analysis, status="done", progress="Terminé", error=None,
-                  title=meeting.get("title") or analysis["titre"])
+                  title=meeting.get("title") or analysis["titre"],
+                  analyzed_atts=",".join(f"{a['id']}:{a['n']}" for a in atts), analyzed_at=datetime.now().isoformat(timespec="seconds"))
         success = True
     except Exception as e:  # noqa: BLE001
         traceback.print_exc()

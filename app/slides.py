@@ -13,6 +13,8 @@ import math
 import re
 from typing import Any
 
+from . import annexes as annex_mod
+
 Slide = dict[str, Any]
 PRIO_ORDER = {"haute": 0, "moyenne": 1, "basse": 2}
 MAX_TOPIC_SLIDES = 14
@@ -128,6 +130,14 @@ KIND_ICON = {"email": "communication", "word": "juridique", "excel": "qualite", 
 MAX_ANNEX_DETAIL_SLIDES = 12
 
 
+def _reinforcement(a: dict, out: list[Slide], visual: bool) -> None:
+    """Ce que les pièces jointes apportent au rapport : suivi des actions antérieures, recoupement avec la réunion."""
+    for title, icon, blk in (("Suivi des actions antérieures", "jalon", annex_mod.suivi_table(a)),
+                             ("Recoupement avec les pièces jointes", "qualite", annex_mod.recoupement_table(a))):
+        if blk:
+            _tables(out, title, icon, blk["headers"], blk["rows"], blk["widths"], visual=visual)
+
+
 def _annex_slides(a: dict, atts: list[dict], visual: bool, out: list[Slide]) -> None:
     """Pièces jointes : une liste, puis le détail utile (courriel, extrait, tableau, image) dans la limite de 12 diapositives."""
     from . import annexes
@@ -139,12 +149,13 @@ def _annex_slides(a: dict, atts: list[dict], visual: bool, out: list[Slide]) -> 
         for i, page in enumerate(_chunks(items, CARDS_PER_SLIDE)):
             out.append({"layout": "cards", "title": _suffix("Pièces jointes", i, len(_chunks(items, CARDS_PER_SLIDE))), "icon": "juridique", "tone": "primary", "items": page})
     else:
-        lines = [f"{i}. {x['name']} ({x['label']}) — {clip(summ[x['id']], 110)}" for i, x in enumerate(atts, 1)]
+        lines = [f"{x.get('n', i)}. {x['name']} ({x['label']}) — {clip(summ[x['id']], 110)}" for i, x in enumerate(atts, 1)]
         pages = _bullet_pages(lines)
         for i, page in enumerate(pages):
             out.append({"layout": "bullets", "title": _suffix("Pièces jointes", i, len(pages)), "paragraph": "", "items": page})
     n = 0
-    for i, x in enumerate(atts, 1):
+    for i0, x in enumerate(atts, 1):
+        i = x.get("n", i0)                       # même numéro que les citations « PJ n » du rapport
         if n >= MAX_ANNEX_DETAIL_SLIDES:
             break
         e, meta = x["extract"], x["extract"].get("meta", {})
@@ -180,7 +191,7 @@ def _cover(a: dict, visual: bool) -> Slide:
 
 def _actions_rows(a: dict) -> list[list[str]]:
     acts = sorted(a["actions"], key=lambda x: PRIO_ORDER.get(x.get("priorite", "moyenne"), 1))
-    return [[str(i), x.get("action", ""), x.get("responsable", "") or "À définir", x.get("echeance", "") or "À définir",
+    return [[str(i), annex_mod.cite(x.get("action", ""), x.get("pj")), x.get("responsable", "") or "À définir", x.get("echeance", "") or "À définir",
              (x.get("priorite") or "moyenne").capitalize()] for i, x in enumerate(acts, 1)]
 
 
@@ -235,16 +246,17 @@ def _standard(a: dict, out: list[Slide]) -> None:
         out.append({"layout": "topic", "title": p.get("sujet", f"Point {n}"), "number": n, "icon": None,
                     "summary": clip(p.get("discussion", ""), 520), "bullets": [clip(x, 220) for x in (p.get("positions") or [])[:4]],
                     "bullets_label": "Positions exprimées", "decisions": [clip(x, 200) for x in (p.get("decisions") or [])[:3]],
-                    "notes": p.get("discussion", "")})
+                    "notes": (p.get("discussion", "") + ("\n\n" + annex_mod.sources_line(p["pj"], a) if annex_mod.tag(p.get("pj")) else "")).strip()})
     if len(points) > MAX_TOPIC_SLIDES:
         rest = [f"{p.get('sujet', '')} — {clip(sentences(p.get('discussion', ''))[0] if sentences(p.get('discussion', '')) else '', 140)}"
                 for p in points[MAX_TOPIC_SLIDES:]]
         for i, page in enumerate(_bullet_pages(rest)):
             out.append({"layout": "bullets", "title": "Autres points abordés", "paragraph": "", "items": page})
     _tables(out, "Décisions", "decision", ["N°", "Décision", "Responsable"],
-            [[str(i), d.get("decision", ""), d.get("responsable", "") or "—"] for i, d in enumerate(a["decisions"], 1)],
+            [[str(i), annex_mod.cite(d.get("decision", ""), d.get("pj")), d.get("responsable", "") or "—"] for i, d in enumerate(a["decisions"], 1)],
             [0.08, 0.67, 0.25])
     _tables(out, "Plan d'actions", "action", ACTION_HEADERS, _actions_rows(a), [0.07, 0.43, 0.2, 0.17, 0.13])
+    _reinforcement(a, out, visual=False)
     for title, items in (("Points de vigilance", a["risques_vigilance"]), ("Recommandations et arbitrages attendus", a["recommandations"])):
         pages = _bullet_pages(items)
         for i, page in enumerate(pages):
@@ -298,19 +310,22 @@ def _visual(a: dict, out: list[Slide]) -> None:
         out.append({"layout": "topic", "title": p.get("sujet", f"Point {n}"), "number": n,
                     "icon": icon_or_guess(p.get("icone"), p.get("sujet", "") + " " + p.get("discussion", "")),
                     "summary": summary, "bullets": bullets, "bullets_label": "", "decisions": [clip(d, 110) for d in (p.get("decisions") or [])[:2]],
-                    "notes": (p.get("discussion", "") + ("\n\nPositions : " + " ; ".join(p["positions"]) if p.get("positions") else "")).strip()})
+                    "notes": (p.get("discussion", "") + ("\n\nPositions : " + " ; ".join(p["positions"]) if p.get("positions") else "")
+                              + ("\n\n" + annex_mod.sources_line(p["pj"], a) if annex_mod.tag(p.get("pj")) else "")).strip()})
     if len(points) > MAX_TOPIC_SLIDES:
         out.append({"layout": "cards", "title": "Autres points abordés", "icon": "objectif", "tone": "primary",
                     "items": [{"title": clip(p.get("sujet", ""), 70), "detail": clip(p.get("essentiel") or " ".join(sentences(p.get("discussion", ""))[:1]), 120),
                                "icon": icon_or_guess(p.get("icone"), p.get("sujet", "")), "chip": ""} for p in points[MAX_TOPIC_SLIDES:MAX_TOPIC_SLIDES + 6]]})
     # 5. Décisions
     dec = [{"title": clip(d.get("decision", ""), 110), "detail": clip(d.get("contexte", ""), 110), "icon": "decision",
-            "chip": ("Resp. : " + d["responsable"]) if d.get("responsable") else ""} for d in a["decisions"]]
+            "chip": " · ".join(x for x in (("Resp. : " + d["responsable"]) if d.get("responsable") else "", annex_mod.tag(d.get("pj"))) if x)}
+           for d in a["decisions"]]
     for i, page in enumerate(_chunks(dec, CARDS_PER_SLIDE) if dec else []):
         out.append({"layout": "cards", "title": _suffix("Décisions prises", i, len(_chunks(dec, CARDS_PER_SLIDE))), "icon": "decision", "tone": "green", "items": page})
     # 6. Plan d'actions (tableau + graphiques)
     _tables(out, "Plan d'actions", "action", ACTION_HEADERS, _actions_rows(a), [0.07, 0.43, 0.2, 0.17, 0.13],
             charts=_action_charts(a), visual=True)
+    _reinforcement(a, out, visual=True)
     # 7. Prochaines étapes (frise)
     def deadline_rank(x):
         e = (x.get("echeance") or "").strip().lower()

@@ -415,12 +415,37 @@ def public(a: dict) -> dict:
 
 # ------------------------------------------------------------------ usage : rédaction et rendus
 def for_report(mid: str) -> list[dict]:
-    """Pièces incluses d'une réunion, avec le contenu nécessaire (les octets d'image sont chargés à la demande par le rendu)."""
+    """Pièces incluses d'une réunion, chacune avec son numéro stable `n` (celui des citations « PJ n » du rapport).
+
+    Les pièces déjà présentes lors de la dernière rédaction gardent leur numéro, même si une autre a été retirée depuis :
+    sinon « PJ 3 » citée dans le texte désignerait une autre pièce que l'annexe 3. Les nouvelles pièces prennent les numéros suivants.
+    """
+    included = [a for a in db.att_list(mid) if a["included"]]
+    num = analyzed_numbers(mid)
+    nxt = max(num.values(), default=0) + 1
     out = []
-    for a in db.att_list(mid):
-        if a["included"]:
-            out.append(a)
+    for a in included:
+        if a["id"] not in num:
+            num[a["id"]] = nxt; nxt += 1
+        out.append({**a, "n": num[a["id"]]})
+    return sorted(out, key=lambda a: a["n"])
+
+
+def analyzed_numbers(mid: str) -> dict[str, int]:
+    """Numéros utilisés par la dernière rédaction : « id:n,id:n » (les trous sont conservés)."""
+    out = {}
+    for part in ((db.get(mid) or {}).get("analyzed_atts") or "").split(","):
+        aid, _, n = part.partition(":")
+        if aid and n.isdigit():
+            out[aid] = int(n)
     return out
+
+
+def is_stale(mid: str, analysis_done: bool) -> bool:
+    """Vrai si les pièces incluses ne sont plus celles qui ont servi à la dernière rédaction."""
+    if not analysis_done:
+        return False
+    return {a["id"] for a in db.att_list(mid) if a["included"]} != set(analyzed_numbers(mid))
 
 
 def with_image_bytes(atts: list[dict]) -> list[dict]:
@@ -445,6 +470,7 @@ def context_text(atts: list[dict], budget: int | None = None) -> str:
     blocks = []
     for i, a in enumerate(atts, 1):
         x = a["extract"]
+        i = a.get("n", i)                                  # numéro stable : celui qui sera cité dans le rapport
         head = f"[PJ {i}] « {a['name']} » — {a['label']}"
         meta = "\n".join(f"{k} : {v}" for k, v in x.get("meta", {}).items())
         body = x.get("text", "")

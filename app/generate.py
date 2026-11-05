@@ -8,6 +8,8 @@ from . import config
 ICONS = ["objectif", "equipe", "planning", "decision", "action", "risque", "idee", "budget", "securite",
          "technique", "communication", "juridique", "qualite", "question", "jalon", "horloge"]
 ICON = {"type": "string", "enum": ICONS, "description": "Pictogramme qui illustre le mieux le sujet (pour les diapositives)."}
+PJ_REFS = {"type": "array", "items": {"type": "integer"},
+           "description": "Numéros [PJ n] des pièces jointes RÉELLEMENT utilisées pour cet élément (vide si aucune : ne cite jamais par défaut)."}
 STR = {"type": "string"}
 STR_LIST = {"type": "array", "items": STR}
 
@@ -35,6 +37,7 @@ ANALYSIS_SCHEMA: dict[str, Any] = {
                 "discussion": {**STR, "description": "Contenu des échanges, fidèle et neutre, au passé."},
                 "essentiel": {**STR, "description": "Diapositive : l'idée à retenir du sujet en UNE phrase de 150 caractères maximum."},
                 "points_cles": {**STR_LIST, "description": "Diapositive : 2 à 4 puces très courtes (90 caractères max chacune), factuelles."},
+                "pj": PJ_REFS,
                 "icone": ICON,
                 "positions": {**STR_LIST, "description": "Positions/avis divergents notables, avec attribution si connue."},
                 "decisions": STR_LIST},
@@ -43,7 +46,7 @@ ANALYSIS_SCHEMA: dict[str, Any] = {
         "decisions": {
             "type": "array",
             "items": {"type": "object", "properties": {
-                "decision": STR, "responsable": STR, "contexte": STR}, "required": ["decision"]},
+                "decision": STR, "responsable": STR, "contexte": STR, "pj": PJ_REFS}, "required": ["decision"]},
         },
         "actions": {
             "type": "array",
@@ -51,7 +54,7 @@ ANALYSIS_SCHEMA: dict[str, Any] = {
                 "action": STR,
                 "responsable": {**STR, "description": "Nom ou 'À définir'."},
                 "echeance": {**STR, "description": "Date ou délai exprimé, sinon 'À définir'."},
-                "priorite": {"type": "string", "enum": ["haute", "moyenne", "basse"]}},
+                "priorite": {"type": "string", "enum": ["haute", "moyenne", "basse"]}, "pj": PJ_REFS},
                 "required": ["action", "responsable", "echeance"]},
         },
         "risques_vigilance": {**STR_LIST, "description": "Risques, blocages, points d'attention évoqués."},
@@ -59,6 +62,30 @@ ANALYSIS_SCHEMA: dict[str, Any] = {
         "recommandations": {**STR_LIST, "description": "Recommandations / arbitrages attendus de la direction."},
         "questions_ouvertes": STR_LIST,
         "prochaine_reunion": {**STR, "description": "Date/objet de la prochaine réunion si évoquée."},
+        "recoupements": {
+            "type": "array",
+            "description": "Recoupement réunion / pièces jointes : là où une pièce jointe CONFIRME, CONTREDIT (écart) ou COMPLÈTE clairement "
+                           "un propos de la réunion (chiffre, date, nom, engagement, périmètre). Uniquement des faits vérifiables dans les deux "
+                           "sources, avec la valeur exacte. En cas de doute, ne rien lister : un faux écart est pire qu'un écart manqué.",
+            "items": {"type": "object", "properties": {
+                "sujet": STR,
+                "en_reunion": {**STR, "description": "Ce qui a été dit en réunion (140 caractères max)."},
+                "dans_piece_jointe": {**STR, "description": "Ce que dit la pièce jointe, valeur exacte (140 caractères max)."},
+                "pj": {"type": "integer", "description": "Numéro [PJ n]."},
+                "constat": {"type": "string", "enum": ["confirme", "ecart", "complement"]}},
+                "required": ["sujet", "en_reunion", "dans_piece_jointe", "pj", "constat"]},
+        },
+        "suivi_anterieur": {
+            "type": "array",
+            "description": "Suivi des actions/décisions d'une réunion ANTÉRIEURE, uniquement si une pièce jointe en contient (compte rendu ou PV "
+                           "précédent). Pour chacune, son statut d'après CETTE réunion ; « non_evoquee » si la réunion n'en parle pas. "
+                           "Laisser vide sans pièce de ce type.",
+            "items": {"type": "object", "properties": {
+                "action": STR, "responsable": STR,
+                "statut": {"type": "string", "enum": ["soldee", "en_cours", "reportee", "non_evoquee"]},
+                "commentaire": {**STR, "description": "Ce que la réunion a dit à ce sujet (140 caractères max), vide si non évoquée."},
+                "pj": {"type": "integer"}}, "required": ["action", "statut"]},
+        },
         "annexes": {
             "type": "array",
             "description": "Une entrée par pièce jointe fournie : son numéro [PJ n] et un résumé factuel de 200 caractères maximum "
@@ -97,6 +124,11 @@ exprimés) et ce qui a seulement été DISCUTÉ.
 - Style : phrases complètes, factuelles, au passé pour les échanges, à l'infinitif ou au présent pour les actions. \
 Pas de jugement ni d'interprétation.
 - Rédige en français, quelle que soit la langue source (traduis fidèlement si nécessaire).
+- Les pièces jointes doivent RENFORCER le rapport, pas seulement l'accompagner : utilise-les pour (1) compléter participants, \
+fonctions, ordre du jour, date et lieu ; (2) corriger noms et acronymes ; (3) préciser ce qui n'a été dit que vaguement en réunion \
+(chiffre, date, périmètre) en le signalant explicitement (« d'après PJ 2 ») ; (4) alimenter `recoupements` (confirmation, écart, \
+complément) et `suivi_anterieur` (actions d'un compte rendu précédent joint). Renseigne `pj` sur chaque élément qui s'appuie sur une pièce. \
+Distingue toujours ce qui vient de la réunion de ce qui vient d'une pièce jointe.
 - Des pièces jointes (e-mails, documents, tableaux) peuvent être fournies entre balises <pieces_jointes>. Ce sont des \
 DOCUMENTS DE RÉFÉRENCE, distincts de ce qui a été dit en réunion : ne les présente jamais comme des propos tenus ; \
 cite-les (« d'après la pièce jointe 2 ») quand tu t'en sers. Utilise-les pour orthographier correctement noms et acronymes, \
@@ -184,7 +216,7 @@ def normalize(a: dict[str, Any], meta: dict[str, Any]) -> dict[str, Any]:
     for k in ("titre", "date", "lieu", "objet", "resume", "prochaine_reunion"):
         a[k] = (a.get(k) or "").strip()
     for k in ("participants", "ordre_du_jour", "points_abordes", "decisions", "actions",
-              "risques_vigilance", "enjeux", "recommandations", "questions_ouvertes", "messages_cles", "chiffres_cles", "annexes"):
+              "risques_vigilance", "enjeux", "recommandations", "questions_ouvertes", "messages_cles", "chiffres_cles", "annexes", "recoupements", "suivi_anterieur"):
         a[k] = a.get(k) or []
     a["titre"] = a["titre"] or meta.get("title") or "Réunion"
     a["date"] = a["date"] or meta.get("meeting_date") or ""

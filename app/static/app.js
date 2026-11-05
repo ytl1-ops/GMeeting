@@ -310,7 +310,7 @@ async function viewMeeting(id) {
   stopPoll = () => (polling = false);
 
   const render = async () => {
-    const key = [m.status, m.progress, tab, m.analysis ? 1 : 0, m.rec_info?.chunks].join("|");
+    const key = [m.status, m.progress, tab, m.analysis ? 1 : 0, m.rec_info?.chunks, m.atts_stale ? 1 : 0].join("|");
     if (key === lastKey) return; lastKey = key;
     head.replaceChildren(el("h1", {}, m.title || "Réunion sans titre"),
       el("p", { class: "hint" }, fmtDate(m.created_at) + (m.duration ? " · " + fmtDur(m.duration) : "") + (m.source_url ? " · " + m.source_url : "")));
@@ -341,7 +341,11 @@ async function viewMeeting(id) {
     [...Object.entries(DOC_LABELS), ["attachments", "Pièces jointes"], ["transcript", "Transcription"], ["infos", "Informations"]].forEach(([k, l]) =>
       tabs.append(el("button", { class: "tab", role: "tab", "aria-selected": k === tab, onclick: () => { tab = k; sessionStorage.setItem("tab", k); lastKey = ""; render(); } }, l)));
     const content = el("div", { class: "card" });
-    body.replaceChildren(tabs, content);
+    // pièces jointes ajoutées / retirées / (dés)activées après la rédaction : les rapports ne les reflètent pas encore
+    const stale = m.atts_stale ? el("div", { class: "alert no-print", role: "status" }, el("strong", {}, "ℹ Les pièces jointes ont changé depuis la rédaction. "),
+      "Régénérez pour que les rapports en tiennent compte (citations des sources, recoupements, suivi des actions antérieures). ",
+      el("div", { class: "row", style: "margin-top:8px" }, el("button", { class: "btn", type: "button", onclick: () => regenerate(id) }, "↻ Régénérer maintenant"))) : null;
+    fill(body, stale, tabs, content);
     if (DOC_LABELS[tab]) await docView(content, id, tab);
     else if (tab === "attachments") await attView(content, id);
     else if (tab === "transcript") transcriptView(content);

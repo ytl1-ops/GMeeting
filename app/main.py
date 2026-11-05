@@ -218,6 +218,7 @@ def get_meeting(mid: str):
     if m["status"] == "recording":
         m["rec_info"] = recordings.info(mid)
     m["has_audio"] = _archive(mid).exists()
+    m["atts_stale"] = attachments.is_stale(mid, bool(m.get("analysis")) and m["status"] == "done")   # pièces modifiées depuis la rédaction
     return m
 
 
@@ -288,7 +289,7 @@ def preview(mid: str, doc_type: str, annexes_on: int = Query(1, alias="annexes")
         return {"slides": slides.build_slides(m["analysis"], visual, atts), "visual": visual}
     if doc_type not in exporters.BUILDERS:
         raise HTTPException(404, "Type de document inconnu")
-    return exporters.BUILDERS[doc_type](m["analysis"]) + annexes.build_blocks(atts, m["analysis"])
+    return exporters.BUILDERS[doc_type](m["analysis"]) + annexes.tail_blocks(atts, m["analysis"])
 
 
 @app.get("/api/meetings/{mid}/export/{doc_type}.{fmt}")

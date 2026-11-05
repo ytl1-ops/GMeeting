@@ -610,7 +610,10 @@ class Deck:
         for i, w in enumerate(d["widths"]):
             tbl.columns[i].width = Inches(tw * w)
         pt = 14
-        prio_col = {"Haute": c["red"], "Moyenne": c["amber"], "Basse": c["green"]}
+        # couleurs sémantiques des colonnes de constat / statut / priorité
+        prio_col = {"Haute": c["red"], "Moyenne": c["amber"], "Basse": c["green"], "Écart": c["red"], "Confirmé": c["green"],
+                    "Complément": c["p"], "Soldée": c["green"], "En cours": c["amber"], "Reportée": c["amber"], "Non évoquée": c["red"]}
+        coded = {"Priorité", "Constat", "Statut"}
         def cell(r, ci, txt, header=False, color=None, bold=False):
             ce = tbl.cell(r, ci)
             ce.margin_left = ce.margin_right = Inches(0.1); ce.margin_top = ce.margin_bottom = Inches(0.05)
@@ -628,7 +631,7 @@ class Deck:
             cell(0, ci, h, header=True)
         for ri, row in enumerate(rows, 1):
             for ci, v in enumerate(row):
-                cell(ri, ci, str(v), color=prio_col.get(v) if headers[ci] == "Priorité" else None, bold=headers[ci] == "Priorité")
+                cell(ri, ci, str(v), color=prio_col.get(v) if headers[ci] in coded else None, bold=headers[ci] in coded and v in prio_col)
         if charts:
             self._charts(s, charts)
         self.chrome(s)
