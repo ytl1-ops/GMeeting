@@ -7,12 +7,12 @@ from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import config, db, exporters, generate, pipeline, transcribe
+from . import branding, config, db, exporters, generate, pipeline, transcribe
 
 STATIC = Path(__file__).parent / "static"
 basic = HTTPBasic(auto_error=False)
@@ -184,11 +184,48 @@ def export(mid: str, doc_type: str, fmt: str):
     if not m.get("analysis"):
         raise HTTPException(409, "Analyse non disponible pour cette réunion")
     try:
-        data, mime, name = exporters.export(m["analysis"], doc_type, fmt, m.get("transcript"))
+        data, mime, name = exporters.export(m["analysis"], doc_type, fmt, m.get("transcript"), branding.for_export())
     except ValueError as e:
         raise HTTPException(404, str(e))
     return StreamingResponse(io.BytesIO(data), media_type=mime,
                              headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(name)}"})
+
+
+# ------------------------------------------------------------------ gabarit (logo, en-tête)
+@app.get("/api/branding")
+def get_branding():
+    return {**branding.get(), "has_logo": branding.logo_bytes() is not None}
+
+
+@app.put("/api/branding")
+def put_branding(body: dict):
+    try:
+        return {**branding.save(body), "has_logo": branding.logo_bytes() is not None}
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+
+
+@app.post("/api/branding/logo")
+async def put_logo(file: UploadFile = File(...)):
+    try:
+        branding.save_logo(await file.read(branding.MAX_LOGO_BYTES + 1))
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    return {"has_logo": True}
+
+
+@app.delete("/api/branding/logo")
+def del_logo():
+    branding.delete_logo()
+    return {"has_logo": False}
+
+
+@app.get("/api/branding/logo")
+def get_logo():
+    data = branding.logo_bytes()
+    if data is None:
+        raise HTTPException(404, "Aucun logo")
+    return Response(data, media_type="image/png", headers={"Cache-Control": "no-cache"})
 
 
 app.mount("/", StaticFiles(directory=STATIC, html=True), name="static")

@@ -60,3 +60,13 @@ textarea{min-height:90px;resize:vertical}
 .empty{color:var(--mute);text-align:center;padding:24px}
 @media print{.top,.exports,.tabs,.no-print{display:none!important}.card{border:0}}
 a{color:var(--navy2)}
+
+.nav{margin-left:auto;margin-right:14px}.nav a{font-size:14px;text-decoration:none;font-weight:600}
+.band{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 4px 8px;border-bottom:3px solid var(--navy);margin-bottom:14px}
+.band .l{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px}.band img{max-height:48px;max-width:180px;object-fit:contain}
+.band .r{font-size:12.5px;color:var(--mute);text-align:right}
+.bandfoot{display:flex;justify-content:space-between;font-size:11.5px;color:var(--mute);border-top:1px solid var(--line);padding-top:6px;margin-top:14px}
+.bandfoot b{color:var(--err)}
+.colorrow{display:flex;gap:10px;align-items:center}.colorrow input[type=color]{width:52px;height:38px;padding:2px}.colorrow input[type=text]{width:120px}
+.logo-prev{border:1px dashed var(--line);border-radius:8px;padding:10px;min-height:70px;display:flex;align-items:center;justify-content:center;background:#fff}
+.logo-prev img{max-height:70px;max-width:100%}

@@ -38,7 +38,8 @@ window.addEventListener("beforeunload", (e) => { if (Recorder.active) { e.preven
 async function route() {
   stopPoll(); stopRecorderCleanup();
   const m = location.hash.match(/^#\/m\/(\w+)/);
-  m ? await viewMeeting(m[1]) : await viewHome();
+  if (location.hash === "#/brand") await viewBrand();
+  else m ? await viewMeeting(m[1]) : await viewHome();
 }
 
 /* ============================================================ ENREGISTREUR */
@@ -294,9 +295,66 @@ async function docView(host, id, type) {
       el("a", { class: "btn sec", href: `/api/meetings/${id}/export/${type}.${f}`, download: true }, "⬇ " + l)));
   host.replaceChildren(exp, el("p", { class: "hint" }, "Chargement…"));
   try {
-    const blocks = await api(`/meetings/${id}/preview/${type}`);
-    host.replaceChildren(exp, renderBlocks(blocks));
+    const [blocks, br] = await Promise.all([api(`/meetings/${id}/preview/${type}`), api("/branding")]);
+    host.replaceChildren(exp, brandBand(br), renderBlocks(blocks), brandFoot(br));
   } catch (e) { host.append(el("div", { class: "err" }, e.message)); }
+}
+
+/* ============================================================ GABARIT */
+function brandBand(b) {
+  if (!b.has_logo && !b.org_name && !b.header_right) return el("span");
+  return el("div", { class: "band", style: `border-color:${b.color}` },
+    el("div", { class: "l", style: `color:${b.color}` }, b.has_logo ? el("img", { src: "/api/branding/logo?v=" + (b.v || Date.now()), alt: "Logo" }) : null, b.org_name),
+    el("div", { class: "r" }, b.header_right));
+}
+function brandFoot(b) {
+  if (!b.footer && !b.confidential) return el("span");
+  return el("div", { class: "bandfoot" }, el("span", {}, b.footer), el("b", {}, b.confidential));
+}
+
+async function viewBrand() {
+  let b = await api("/branding");
+  const prev = el("div", { class: "card", style: "background:var(--card)" });
+  const field = (k, label, ph) => el("div", {}, el("label", { for: "b-" + k }, label), el("input", { id: "b-" + k, value: b[k] || "", placeholder: ph, oninput: refresh }));
+  const color = el("input", { type: "color", id: "b-color", value: b.color, oninput: (e) => { hex.value = e.target.value.toUpperCase(); refresh(); } });
+  const hex = el("input", { type: "text", id: "b-hex", value: b.color, maxlength: 7, "aria-label": "Code couleur", oninput: (e) => { if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) { color.value = e.target.value; refresh(); } } });
+  const logoBox = el("div", { class: "logo-prev" });
+  const file = el("input", { type: "file", accept: "image/png,image/jpeg,image/gif,image/webp", "aria-label": "Fichier logo" });
+  const cur = () => ({ ...b, org_name: val("b-org_name"), header_right: val("b-header_right"), footer: val("b-footer"), confidential: val("b-confidential"), color: color.value.toUpperCase() });
+  function refresh() {
+    const c = cur(); c.v = b.v;
+    prev.replaceChildren(el("div", { class: "hint", style: "margin-bottom:6px" }, "Aperçu de l'en-tête et du pied de page"),
+      brandBand(c).tagName === "SPAN" ? el("div", { class: "empty" }, "Ajoutez un logo ou un texte d'en-tête") : brandBand(c),
+      el("div", { class: "doc" }, el("div", { class: "dt", style: `color:${c.color}` }, "PROCÈS-VERBAL DE RÉUNION"), el("h3", { style: `color:${c.color};border-color:${c.color}` }, "Exemple de titre de section")),
+      brandFoot(c));
+    logoBox.replaceChildren(b.has_logo ? el("img", { src: "/api/branding/logo?v=" + (b.v || 0), alt: "Logo actuel" }) : el("span", { class: "hint" }, "Aucun logo"));
+  }
+  file.onchange = async () => {
+    const f = file.files[0]; if (!f) return;
+    const fd = new FormData(); fd.append("file", f);
+    try { await api("/branding/logo", { method: "POST", body: fd }); b.has_logo = true; b.v = Date.now(); refresh(); toast("Logo enregistré."); }
+    catch (e) { toast(e.message); } file.value = "";
+  };
+  const rm = el("button", { class: "btn danger", onclick: async () => { await api("/branding/logo", { method: "DELETE" }); b.has_logo = false; refresh(); } }, "Retirer le logo");
+  const save = el("button", { class: "btn" }, "Enregistrer le gabarit");
+  save.onclick = async () => {
+    const { org_name, header_right, footer, confidential, color: col } = cur();
+    try { b = { ...(await api("/branding", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ org_name, header_right, footer, confidential, color: col }) })), v: b.v }; toast("Gabarit enregistré : il s'applique aux nouveaux exports PDF, Word et Excel."); }
+    catch (e) { toast(e.message); }
+  };
+  $app.replaceChildren(el("p", {}, el("a", { href: "#/" }, "← Retour")), el("h1", {}, "Gabarit des documents"),
+    el("div", { class: "card" },
+      el("p", { class: "hint" }, "Ces éléments sont appliqués à tous les exports (PV, CR, note de synthèse) en PDF, Word et Excel."),
+      el("label", {}, "Logo (PNG, JPEG, GIF ou WebP – fond transparent recommandé)"), logoBox,
+      el("div", { class: "row", style: "margin-top:8px" }, file, b.has_logo ? rm : null),
+      el("div", { class: "grid" }, field("org_name", "Nom de l'organisation", "Ex. Direction de la Sûreté – ACME"),
+        field("header_right", "Texte d'en-tête (à droite)", "Ex. Diffusion restreinte"),
+        field("footer", "Pied de page (remplace le pied par défaut)", "Ex. ACME – Document interne"),
+        field("confidential", "Mention de confidentialité", "Ex. CONFIDENTIEL")),
+      el("label", { for: "b-hex" }, "Couleur des titres et des tableaux"), el("div", { class: "colorrow" }, color, hex),
+      el("div", { class: "row", style: "margin-top:14px" }, save)),
+    prev);
+  refresh();
 }
 
 function renderBlocks(blocks) {

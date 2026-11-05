@@ -22,6 +22,13 @@ et obtenez automatiquement une **transcription**, puis un **procès-verbal**, un
 Excel : un onglet par tableau (Participants, Décisions, Actions filtrables) + onglet Transcription horodatée.
 La transcription est **éditable** (noms propres, acronymes) puis les 3 documents se **régénèrent** en un clic.
 
+## Gabarit personnalisable (menu « 🎨 Gabarit »)
+
+Logo, nom de l'organisation, texte d'en-tête, pied de page, mention de confidentialité (en rouge) et couleur des
+titres/tableaux, avec aperçu en direct. Appliqué à tous les exports : en-tête sur chaque page en PDF et Word,
+bandeau en tête de l'onglet principal et pied d'impression en Excel. Le logo est ré-encodé en PNG (≤ 800×300 px) et
+stocké dans `DATA_DIR/branding/`. Sans configuration, le rendu par défaut est inchangé.
+
 ## Démarrage
 
 ```bash

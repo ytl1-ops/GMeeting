@@ -17,10 +17,25 @@ FORMATS = {
     "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 }
-NAVY = "1F3A5F"
+NAVY = "1F3A5F"  # couleur par défaut ; surchargée par le gabarit (branding)
 PRIO_ORDER = {"haute": 0, "moyenne": 1, "basse": 2}
 
 Block = dict[str, Any]
+DEFAULT_BRAND: dict[str, Any] = {"org_name": "", "header_right": "", "footer": "", "confidential": "",
+                                 "color": NAVY, "logo": None, "logo_size": None}
+
+
+def _has_header(brand: dict) -> bool:
+    return bool(brand.get("logo") or brand.get("org_name") or brand.get("header_right"))
+
+
+def _logo_dims(brand: dict, height: float, max_width: float) -> tuple[float, float]:
+    """Dimensions (largeur, hauteur) du logo, hauteur cible bornée en largeur, ratio conservé."""
+    lw, lh = brand["logo_size"]
+    w, h = height * lw / lh, height
+    if w > max_width:
+        w, h = max_width, max_width * lh / lw
+    return w, h
 
 
 # ------------------------------------------------------------------ construction des blocs
@@ -148,7 +163,7 @@ def _footer_text(a: dict, doc_type: str) -> str:
 
 
 # ------------------------------------------------------------------ PDF
-def render_pdf(blocks: list[Block], footer: str) -> bytes:
+def render_pdf(blocks: list[Block], footer: str, brand: dict) -> bytes:
     from reportlab.lib import colors
     from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
     from reportlab.lib.pagesizes import A4
@@ -156,7 +171,7 @@ def render_pdf(blocks: list[Block], footer: str) -> bytes:
     from reportlab.lib.units import cm
     from reportlab.platypus import (KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle)
 
-    navy = colors.HexColor("#" + NAVY)
+    navy = colors.HexColor("#" + brand["color"])
     ss = getSampleStyleSheet()
     body = ParagraphStyle("body", parent=ss["BodyText"], fontSize=10, leading=14.5, alignment=TA_JUSTIFY, spaceAfter=5)
     cell = ParagraphStyle("cell", parent=body, fontSize=9, leading=12, alignment=0, spaceAfter=0)
@@ -209,25 +224,47 @@ def render_pdf(blocks: list[Block], footer: str) -> bytes:
             tb.setStyle(TableStyle([("BOX", (0, 1), (0, 1), 0.4, colors.grey), ("BOX", (1, 1), (1, 1), 0.4, colors.grey)]))
             story += [Spacer(1, 18), KeepTogether(tb)]
 
+    head = _has_header(brand)
+
     def decorate(canvas, doc):
+        from reportlab.lib.utils import ImageReader
         canvas.saveState()
         canvas.setFont("Helvetica", 8)
         canvas.setFillColor(colors.grey)
-        canvas.drawString(2 * cm, 1.2 * cm, footer[:110])
+        canvas.drawString(2 * cm, 1.2 * cm, (brand["footer"] or footer)[:110])
         canvas.drawRightString(A4[0] - 2 * cm, 1.2 * cm, f"Page {doc.page}")
+        if brand["confidential"]:
+            canvas.setFillColor(colors.HexColor("#C0392B")); canvas.setFont("Helvetica-Bold", 8)
+            canvas.drawCentredString(A4[0] / 2, 0.75 * cm, brand["confidential"])
         canvas.setStrokeColor(navy)
         canvas.setLineWidth(1.2)
-        canvas.line(2 * cm, A4[1] - 1.5 * cm, A4[0] - 2 * cm, A4[1] - 1.5 * cm)
+        if head:
+            x, base = 2 * cm, A4[1] - 2.3 * cm
+            if brand["logo"]:
+                w, h = _logo_dims(brand, 1.3 * cm, 5 * cm)
+                canvas.drawImage(ImageReader(io.BytesIO(brand["logo"])), x, base + (1.3 * cm - h) / 2 + 0.2 * cm,
+                                 width=w, height=h, mask="auto")
+                x += w + 0.35 * cm
+            if brand["org_name"]:
+                canvas.setFillColor(navy); canvas.setFont("Helvetica-Bold", 12)
+                canvas.drawString(x, base + 0.65 * cm, brand["org_name"])
+            if brand["header_right"]:
+                canvas.setFillColor(colors.grey); canvas.setFont("Helvetica", 8.5)
+                canvas.drawRightString(A4[0] - 2 * cm, base + 0.65 * cm, brand["header_right"])
+            canvas.line(2 * cm, base, A4[0] - 2 * cm, base)
+        else:
+            canvas.line(2 * cm, A4[1] - 1.5 * cm, A4[0] - 2 * cm, A4[1] - 1.5 * cm)
         canvas.restoreState()
 
     buf = io.BytesIO()
-    SimpleDocTemplate(buf, pagesize=A4, leftMargin=2 * cm, rightMargin=2 * cm, topMargin=2.2 * cm, bottomMargin=2 * cm,
-                      title=footer, author="GMeeting").build(story, onFirstPage=decorate, onLaterPages=decorate)
+    SimpleDocTemplate(buf, pagesize=A4, leftMargin=2 * cm, rightMargin=2 * cm,
+                      topMargin=3.2 * cm if head else 2.2 * cm, bottomMargin=2 * cm,
+                      title=footer, author=brand["org_name"] or "GMeeting").build(story, onFirstPage=decorate, onLaterPages=decorate)
     return buf.getvalue()
 
 
 # ------------------------------------------------------------------ Word
-def render_docx(blocks: list[Block], footer: str) -> bytes:
+def render_docx(blocks: list[Block], footer: str, brand: dict) -> bytes:
     from docx import Document
     from docx.enum.table import WD_TABLE_ALIGNMENT
     from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -241,14 +278,14 @@ def render_docx(blocks: list[Block], footer: str) -> bytes:
     sec.left_margin = sec.right_margin = Cm(2)
     doc.styles["Normal"].font.name = "Calibri"
     doc.styles["Normal"].font.size = Pt(10.5)
-    navy = RGBColor.from_string(NAVY)
+    navy = RGBColor.from_string(brand["color"])
     for name, size in (("Heading 1", 14), ("Heading 2", 12)):
         s = doc.styles[name]
         s.font.name, s.font.size, s.font.color.rgb = "Calibri", Pt(size), navy
 
     # pied de page
     fp = sec.footer.paragraphs[0]
-    fp.text = footer + "  —  Page "
+    fp.text = (brand["footer"] or footer) + "  —  Page "
     for kind, txt in (("begin", None), (None, "PAGE"), ("end", None)):
         run = fp.add_run()
         if kind:
@@ -258,6 +295,31 @@ def render_docx(blocks: list[Block], footer: str) -> bytes:
         run._r.append(el)
     for r in fp.runs:
         r.font.size = Pt(8); r.font.color.rgb = RGBColor(0x80, 0x80, 0x80)
+
+    if brand["confidential"]:
+        cp = sec.footer.add_paragraph(); cp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        cr = cp.add_run(brand["confidential"]); cr.bold = True; cr.font.size = Pt(8); cr.font.color.rgb = RGBColor(0xC0, 0x39, 0x2B)
+
+    if _has_header(brand):
+        hdr = sec.header
+        tb = hdr.add_table(1, 2, Cm(17))
+        lp = tb.cell(0, 0).paragraphs[0]
+        if brand["logo"]:
+            w, h = _logo_dims(brand, 1.3, 5)
+            lp.add_run().add_picture(io.BytesIO(brand["logo"]), width=Cm(w), height=Cm(h))
+        if brand["org_name"]:
+            r = lp.add_run(("  " if brand["logo"] else "") + brand["org_name"])
+            r.bold = True; r.font.size = Pt(12); r.font.color.rgb = navy
+        rp = tb.cell(0, 1).paragraphs[0]; rp.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        rr = rp.add_run(brand["header_right"]); rr.font.size = Pt(8.5); rr.font.color.rgb = RGBColor(0x80, 0x80, 0x80)
+        tb.cell(0, 0).width, tb.cell(0, 1).width = Cm(10), Cm(7)
+        line = hdr.add_paragraph()
+        bdr = OxmlElement("w:pBdr"); bot = OxmlElement("w:bottom")
+        for k, v in (("val", "single"), ("sz", "12"), ("space", "1"), ("color", brand["color"])):
+            bot.set(qn("w:" + k), v)
+        bdr.append(bot); line._p.get_or_add_pPr().append(bdr)
+        first = hdr.paragraphs[0]._p
+        first.getparent().remove(first)
 
     def shade(cell, hex_):
         tcPr = cell._tc.get_or_add_tcPr()
@@ -295,7 +357,7 @@ def render_docx(blocks: list[Block], footer: str) -> bytes:
             for i, h in enumerate(blk["headers"]):
                 c = tb.rows[0].cells[i]; c.text = ""
                 r = c.paragraphs[0].add_run(h); r.bold = True; r.font.color.rgb = RGBColor(255, 255, 255)
-                shade(c, NAVY)
+                shade(c, brand["color"])
             for n, row in enumerate(blk["rows"]):
                 cells = tb.add_row().cells
                 for i, v in enumerate(row):
@@ -319,13 +381,15 @@ def render_docx(blocks: list[Block], footer: str) -> bytes:
 
 
 # ------------------------------------------------------------------ Excel
-def render_xlsx(blocks: list[Block], title: str, transcript: str | None = None) -> bytes:
+def render_xlsx(blocks: list[Block], title: str, transcript: str | None = None, brand: dict | None = None) -> bytes:
+    brand = brand or DEFAULT_BRAND
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Font, PatternFill, Border, Side
     from openpyxl.utils import get_column_letter
 
     wb = Workbook()
     ws = wb.active; ws.title = "Document"
+    NAVY = brand["color"]
     head_fill = PatternFill("solid", fgColor=NAVY)
     white_bold = Font(bold=True, color="FFFFFF")
     thin = Side(style="thin", color="B8C2CF")
@@ -338,6 +402,23 @@ def render_xlsx(blocks: list[Block], title: str, transcript: str | None = None) 
 
     row = 1
     used = {"Document"}
+    if _has_header(brand):
+        from openpyxl.drawing.image import Image as XLImage
+        if brand["logo"]:
+            w, h = _logo_dims(brand, 52, 190)
+            img = XLImage(io.BytesIO(brand["logo"])); img.width, img.height = w, h
+            ws.add_image(img, "A1")
+        if brand["org_name"]:
+            ws.cell(1, 2, brand["org_name"]).font = Font(bold=True, size=14, color=NAVY)
+        if brand["header_right"]:
+            ws.cell(2, 2, brand["header_right"]).font = Font(size=10, color="808080")
+        for r_ in (1, 2, 3):
+            ws.row_dimensions[r_].height = 20
+        row = 5
+    ws.oddFooter.left.text = brand["footer"] or title
+    ws.oddFooter.right.text = "Page &P / &N"
+    if brand["confidential"]:
+        ws.oddFooter.center.text = brand["confidential"]
     for blk in blocks:
         t = blk["t"]
         if t == "title":
@@ -399,7 +480,8 @@ def render_xlsx(blocks: list[Block], title: str, transcript: str | None = None) 
 
 
 # ------------------------------------------------------------------ API publique
-def export(analysis: dict, doc_type: str, fmt: str, transcript: str | None = None) -> tuple[bytes, str, str]:
+def export(analysis: dict, doc_type: str, fmt: str, transcript: str | None = None,
+           brand: dict | None = None) -> tuple[bytes, str, str]:
     """Retourne (contenu, type MIME, nom de fichier)."""
     if doc_type not in BUILDERS:
         raise ValueError(f"Type de document inconnu : {doc_type}")
@@ -407,12 +489,13 @@ def export(analysis: dict, doc_type: str, fmt: str, transcript: str | None = Non
         raise ValueError(f"Format inconnu : {fmt}")
     blocks = BUILDERS[doc_type](analysis)
     footer = _footer_text(analysis, doc_type)
+    brand = brand or DEFAULT_BRAND
     if fmt == "pdf":
-        data = render_pdf(blocks, footer)
+        data = render_pdf(blocks, footer, brand)
     elif fmt == "docx":
-        data = render_docx(blocks, footer)
+        data = render_docx(blocks, footer, brand)
     else:
-        data = render_xlsx(blocks, footer, transcript)
+        data = render_xlsx(blocks, footer, transcript, brand)
     ascii_title = unicodedata.normalize("NFKD", analysis["titre"]).encode("ascii", "ignore").decode()
     slug = re.sub(r"[^A-Za-z0-9]+", "_", ascii_title).strip("_")[:50] or "reunion"
     return data, FORMATS[fmt], f"{doc_type.upper()}_{slug}.{fmt}"
