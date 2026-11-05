@@ -14,7 +14,7 @@ import time
 from pathlib import Path
 
 from . import config
-from .ingest import normalize_audio, require_ffmpeg
+from .ingest import AUDIO_EXT, audio_args, require_ffmpeg
 
 MAX_CHUNK_BYTES = 64 * 1024 * 1024
 
@@ -54,13 +54,12 @@ def assemble(mid: str, out: Path) -> Path:
         with open(joined, "wb") as f:
             for c in chunks:
                 f.write(c.read_bytes())
-        mp3 = pdir / "part.mp3"
+        enc = pdir / f"part{AUDIO_EXT}"
         # Une partie tronquée (coupure brutale) reste lisible : on accepte un code retour non nul
         # tant que de l'audio exploitable a été produit.
-        subprocess.run(["ffmpeg", "-y", "-i", str(joined), "-vn", "-ac", "1", "-ar", "16000",
-                        "-c:a", "libmp3lame", "-b:a", "48k", str(mp3)], capture_output=True)
-        if mp3.exists() and mp3.stat().st_size > 1000:
-            parts.append(mp3)
+        subprocess.run(["ffmpeg", "-y", "-i", str(joined), *audio_args(), str(enc)], capture_output=True)
+        if enc.exists() and enc.stat().st_size > 500:
+            parts.append(enc)
     if not parts:
         raise RuntimeError("Aucun audio exploitable n'a été reçu pour cet enregistrement.")
     out.parent.mkdir(parents=True, exist_ok=True)

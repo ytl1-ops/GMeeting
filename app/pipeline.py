@@ -27,7 +27,7 @@ def process(mid: str, audio_path: Path | None = None, url: str | None = None,
             db.update(mid, status="processing", error=None)
             if recording:
                 progress("Assemblage de l'enregistrement…")
-                audio_path = recordings.assemble(mid, workdir / "audio.mp3")
+                audio_path = recordings.assemble(mid, workdir / f"audio{ingest.AUDIO_EXT}")
                 db.update(mid, duration=ingest.probe_duration(audio_path))
             elif url:
                 fetched = ingest.fetch_url(url, workdir, lang, prefer_subtitles, progress)
@@ -38,7 +38,7 @@ def process(mid: str, audio_path: Path | None = None, url: str | None = None,
                 transcript, audio_path = fetched.text, fetched.audio
             elif audio_path:
                 progress("Préparation de l'audio…")
-                norm = ingest.normalize_audio(audio_path, workdir / "audio.mp3")
+                norm = ingest.normalize_audio(audio_path, workdir / f"audio{ingest.AUDIO_EXT}")
                 db.update(mid, duration=ingest.probe_duration(norm))
                 audio_path = norm
             if transcript is None:
@@ -61,5 +61,11 @@ def process(mid: str, audio_path: Path | None = None, url: str | None = None,
         db.update(mid, status="error", error=str(e)[:800])
     finally:
         # En cas d'échec l'audio est conservé : on ne perd jamais une réunion, le traitement peut être relancé.
-        if success and not config.KEEP_AUDIO:
+        if success:
+            # KEEP_AUDIO : on archive l'unique fichier Opus compact (≈ 12 Mo/h) et on supprime tout le brut
+            if config.KEEP_AUDIO and audio_path and Path(audio_path).exists():
+                try:
+                    shutil.copyfile(audio_path, config.ARCHIVE_DIR / f"{mid}{ingest.AUDIO_EXT}")
+                except OSError:
+                    traceback.print_exc()
             shutil.rmtree(workdir, ignore_errors=True)

@@ -24,6 +24,20 @@ et obtenez automatiquement une **transcription**, puis un **procès-verbal**, un
 Excel : un onglet par tableau (Participants, Décisions, Actions filtrables) + onglet Transcription horodatée.
 La transcription est **éditable** (noms propres, acronymes) puis les 3 documents se **régénèrent** en un clic.
 
+## Qualité audio et taille des enregistrements
+
+Configuration choisie sur mesure (poids mesurés sur un signal de test ; sur de la voix réelle, ils sont en général plus bas) :
+
+| Étape | Avant | Maintenant |
+|---|---|---|
+| **Capture navigateur** | stéréo, ≈ 128 kbps (≈ 52 Mo/h mesuré) | **mono, profil au choix** : Économique 24 kbps (≈ 11 Mo/h max), **Équilibré 32 kbps (≈ 14 Mo/h max, défaut)**, Haute qualité 64 kbps (≈ 29 Mo/h max) — soit ≈ 75 % de données en moins en Équilibré |
+| **Fichier de travail** | MP3 48 kbps (≈ 21 Mo/h) | **Opus mono 16 kHz « voix » 32 kbps** (≈ 12-14 Mo/h) : fréquence utile à la parole et à Whisper, meilleure intelligibilité qu'un MP3 de même débit |
+| **Archive** (`KEEP_AUDIO=true`) | tous les fichiers bruts | **un seul fichier Opus compact**, réécoutable dans l'interface (lecture avec avance/retour) |
+
+Détails : passe-haut 70 Hz et normalisation du volume (`AUDIO_ENHANCE`, rattrape les enregistrements faibles) ; **VBR contraint** car, mesuré, le VBR
+libre d'Opus dépassait sa cible de plus de 50 % sur certains sons ; débit réglable (`AUDIO_KBPS`, 12-128). Moins de données = envoi plus rapide
+et **moins de stockage en mode avion**. Le choix du profil est mémorisé. Sur Safari (AAC), le plancher est de 32 kbps.
+
 ## Compagnon de réunion en continu
 
 L'enregistreur est conçu pour **ne jamais perdre une réunion**, y compris après un appel téléphonique :

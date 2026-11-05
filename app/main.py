@@ -9,7 +9,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -18,7 +18,7 @@ import shutil
 
 from fastapi import Request
 
-from . import branding, config, db, exporters, generate, pipeline, recordings, slides, transcribe
+from . import branding, config, db, exporters, generate, ingest, pipeline, recordings, slides, transcribe
 
 STATIC = Path(__file__).parent / "static"
 basic = HTTPBasic(auto_error=False)
@@ -197,7 +197,7 @@ def rec_finish(mid: str, body: RecFinish, bg: BackgroundTasks):
 def get_config():
     return {"transcribe_provider": transcribe.provider(), "has_anthropic": bool(config.ANTHROPIC_API_KEY),
             "has_openai": bool(config.OPENAI_API_KEY), "model": config.ANTHROPIC_MODEL,
-            "keep_audio": config.KEEP_AUDIO}
+            "keep_audio": config.KEEP_AUDIO, "audio_kbps": config.AUDIO_KBPS, "audio_enhance": config.AUDIO_ENHANCE}
 
 
 @app.get("/api/meetings")
@@ -210,7 +210,21 @@ def get_meeting(mid: str):
     m = _meeting(mid)
     if m["status"] == "recording":
         m["rec_info"] = recordings.info(mid)
+    m["has_audio"] = _archive(mid).exists()
     return m
+
+
+def _archive(mid: str) -> Path:
+    return config.ARCHIVE_DIR / f"{mid}{ingest.AUDIO_EXT}"
+
+
+@app.get("/api/meetings/{mid}/audio")
+def meeting_audio(mid: str):
+    """Réécoute de l'enregistrement (si KEEP_AUDIO) : fichier Opus compact, lecture par plages (avance/retour)."""
+    _meeting(mid)
+    if not _archive(mid).exists():
+        raise HTTPException(404, "Aucun audio conservé pour cette réunion (activez KEEP_AUDIO)")
+    return FileResponse(_archive(mid), media_type="audio/ogg")
 
 
 class PatchIn(BaseModel):
@@ -249,6 +263,7 @@ def delete_meeting(mid: str):
     _meeting(mid)
     db.delete(mid)
     shutil.rmtree(config.AUDIO_DIR / mid, ignore_errors=True)
+    _archive(mid).unlink(missing_ok=True)
     return {"ok": True}
 
 

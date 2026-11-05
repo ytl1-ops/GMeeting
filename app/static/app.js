@@ -152,13 +152,19 @@ function recPanel() {
   const banner = el("div", { class: "rec-banner", role: "status", hidden: true });
   const net = el("p", { class: "hint", role: "status" });
   const log = el("ul", { class: "hint", style: "list-style:none;padding:0;margin:6px 0" });
+  const savedQ = (() => { try { return localStorage.getItem("gm_audio_profile"); } catch { return null; } })();
+  const quality = el("select", { id: "rec-quality", "aria-label": "Qualité audio", title: "Compromis qualité / taille de l'enregistrement" },
+    ...Object.entries(GRec.PROFILES).map(([k, p]) => el("option", { value: k, selected: k === (GRec.PROFILES[savedQ] ? savedQ : "equilibre") }, `Audio : ${p.label}`)));
+  const qualityNote = el("p", { class: "hint", style: "margin:2px 0 0" });
+  const showQ = () => { qualityNote.textContent = GRec.PROFILES[quality.value].note + " · mono, voix optimisée"; try { localStorage.setItem("gm_audio_profile", quality.value); } catch {} };
+  quality.onchange = showQ; showQ();
   const mode = el("select", { id: "rec-mode", "aria-label": "Source audio" },
     el("option", { value: "mic" }, "Micro seul (présentiel, téléphone)"),
     el("option", { value: "tab" }, "Micro + audio de l'onglet (visio web)"));
   let iv = 0, unsub = () => {};
 
   const ui = (running) => {
-    btn.hidden = running; pauseBtn.hidden = markBtn.hidden = stopBtn.hidden = !running; mode.disabled = running;
+    btn.hidden = running; pauseBtn.hidden = markBtn.hidden = stopBtn.hidden = !running; mode.disabled = quality.disabled = running;
     btn.classList.toggle("live", running);
     if (!running) { meter.firstChild.style.width = "0"; banner.hidden = true; tapBtn.hidden = true; }
   };
@@ -183,7 +189,7 @@ function recPanel() {
       onLevel: (l) => (meter.firstChild.style.width = Math.min(100, l * 140) + "%"),
       onEvent: (m) => say(m),
     });
-    try { await s.start(meta(), mode.value === "tab"); }
+    try { await s.start(meta(), mode.value === "tab", quality.value); }
     catch (e) { toast(e.message); btn.disabled = false; return; }
     live = s; btn.disabled = false; ui(true); log.replaceChildren();
     iv = setInterval(() => { const sec = s.elapsed(); timer.dataset.s = sec; timer.textContent = new Date(sec * 1000).toISOString().substr(11, 8); showNet(); }, 500);
@@ -214,7 +220,7 @@ function recPanel() {
     unsub = GRec.onProgress(showNet);
   }
   stopRecorderCleanup = () => { clearInterval(iv); unsub(); }; // la session continue même si l'on change de page
-  return el("div", { class: "rec-box" }, el("div", { class: "row", style: "justify-content:center" }, mode), timer, meter, banner,
+  return el("div", { class: "rec-box" }, el("div", { class: "row", style: "justify-content:center" }, mode, quality), qualityNote, timer, meter, banner,
     el("div", { class: "row", style: "justify-content:center;margin:12px 0" }, btn, pauseBtn, markBtn, stopBtn), tapBtn, net, log,
     offlineTip(),
     el("p", { class: "hint" }, "L'audio est écrit sur l'appareil puis envoyé en continu : une coupure réseau, un appel téléphonique ou la fermeture de la page ne font pas perdre l'enregistrement. " +

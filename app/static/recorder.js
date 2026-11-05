@@ -11,6 +11,13 @@
  */
 const GRec = (() => {
   const CH = "chunks", SES = "sessions", CHUNK_MS = 4000;
+  /** Profils de capture : mono + débit Opus plafonné (le navigateur choisirait ≈ 128 kbps stéréo, soit ≈ 37 Mo/h).
+   *  Tailles = plafond théorique (débit × durée) ; mesuré, la voix reste en général en dessous. */
+  const PROFILES = {
+    eco: { label: "Économique", kbps: 24, note: "≈ 11 Mo/h max — réunions calmes, stockage limité (mode avion long)" },
+    equilibre: { label: "Équilibré (recommandé)", kbps: 32, note: "≈ 14 Mo/h max — voix claire, taille réduite" },
+    haute: { label: "Haute qualité", kbps: 64, note: "≈ 29 Mo/h max — salle bruyante ou vaste, plusieurs voix éloignées" },
+  };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   /* ---------------------------------------------------------------- stockage local (repli mémoire) */
@@ -163,11 +170,14 @@ const GRec = (() => {
     elapsed() { return this.acc + (this.intended === "recording" && this.t0 ? (Date.now() - this.t0) / 1000 : 0); }
     setState(s) { if (this.state !== s) { this.state = s; this.onState(s); } }
 
-    async start(meta, withTab) {
+    async start(meta, withTab, profile = "equilibre") {
       if (!Session.supported()) throw new Error("Enregistrement non supporté par ce navigateur.");
       this.id = genId(); this.meta = meta; this.startedAt = new Date().toISOString();
+      this.profile = PROFILES[profile] ? profile : "equilibre";
       this.ctx = new AudioContext();
       this.dest = this.ctx.createMediaStreamDestination();
+      this.dest.channelCount = 1;                 // mono : la parole n'a pas besoin de stéréo, et c'est deux fois moins de données
+      this.dest.channelCountMode = "explicit";
       this.analyser = this.ctx.createAnalyser(); this.analyser.fftSize = 512;
       this.ctx.onstatechange = () => this.check();
       try {
@@ -192,7 +202,7 @@ const GRec = (() => {
 
     /* --- sources audio */
     async attachMic() {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
       const track = stream.getAudioTracks()[0];
       track.addEventListener("mute", () => this.beginInt("appel ou micro occupé"));
       track.addEventListener("unmute", () => this.endInt());
@@ -219,7 +229,9 @@ const GRec = (() => {
     startPart() {
       if (this.intended === "stopped") return;
       const mime = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"].find((t) => MediaRecorder.isTypeSupported(t));
-      const rec = new MediaRecorder(this.dest.stream, mime ? { mimeType: mime } : undefined);
+      // AAC (Safari) devient médiocre sous 32 kbps : plancher à 32 pour ce codec ; Opus tient très bien 24 kbps en voix.
+      const kbps = Math.max(PROFILES[this.profile].kbps, (mime || "").includes("mp4") ? 32 : 0);
+      const rec = new MediaRecorder(this.dest.stream, { ...(mime ? { mimeType: mime } : {}), audioBitsPerSecond: kbps * 1000 });
       const part = ++this.part; let seq = 0;
       this.rec = rec; this.mime = rec.mimeType || mime || "";
       rec.ondataavailable = (e) => { if (e.data && e.data.size) this.saveChunk(part, seq++, e.data); };
@@ -346,5 +358,5 @@ const GRec = (() => {
     get active() { return this.intended === "recording" || this.intended === "paused"; }
   }
 
-  return { Session, orphans, discard, requestFinish, completeFinish, resumePending, flush, pendingCount, onProgress: (f) => (listeners.add(f), () => listeners.delete(f)), store };
+  return { PROFILES, Session, orphans, discard, requestFinish, completeFinish, resumePending, flush, pendingCount, onProgress: (f) => (listeners.add(f), () => listeners.delete(f)), store };
 })();

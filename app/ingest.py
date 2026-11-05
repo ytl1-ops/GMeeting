@@ -10,6 +10,8 @@ from urllib.parse import urlparse
 
 import httpx
 
+from . import config
+
 MEDIA_EXT = {".mp3", ".m4a", ".mp4", ".wav", ".webm", ".ogg", ".opus", ".flac", ".aac", ".mkv", ".mov", ".avi", ".wma"}
 
 
@@ -26,10 +28,25 @@ def require_ffmpeg() -> None:
         raise RuntimeError("ffmpeg est requis (apt install ffmpeg / brew install ffmpeg).")
 
 
+AUDIO_EXT = ".ogg"   # conteneur Ogg/Opus : compact, lu par ffmpeg, Whisper (local et API) et les navigateurs
+
+
+def audio_args() -> list[str]:
+    """Paramètres d'encodage uniques (fichiers de travail, assemblage des enregistrements, archive).
+
+    Opus mono 16 kHz en mode « voix » : la fréquence utile à la parole et à Whisper, au meilleur rapport qualité/poids.
+    Le passe-haut (70 Hz) retire les bruits graves ; loudnorm remonte les enregistrements faibles sans saturer.
+    VBR « contraint » : mesuré, le VBR libre d'Opus dépasse sa cible de plus de 50 % sur certains sons (51 kbps pour 32
+    demandés) ; contraint, le débit reste plafonné à ≈ cible + 3 %, donc la taille est prévisible (≈ 14 Mo/h au maximum).
+    """
+    af = ["-af", "highpass=f=70,loudnorm=I=-18:TP=-2:LRA=11"] if config.AUDIO_ENHANCE else []
+    return ["-vn", "-ac", "1", "-ar", "16000", *af, "-c:a", "libopus", "-b:a", f"{config.AUDIO_KBPS}k", "-application", "voip", "-vbr", "constrained"]
+
+
 def normalize_audio(src: Path, dst: Path) -> Path:
-    """Mono 16 kHz, faible débit : optimal pour la reconnaissance vocale et sous la limite d'upload des API."""
+    """Convertit n'importe quelle source (audio/vidéo) en Opus mono 16 kHz : petit, et optimal pour la reconnaissance vocale."""
     require_ffmpeg()
-    cmd = ["ffmpeg", "-y", "-i", str(src), "-vn", "-ac", "1", "-ar", "16000", "-c:a", "libmp3lame", "-b:a", "48k", str(dst)]
+    cmd = ["ffmpeg", "-y", "-i", str(src), *audio_args(), str(dst)]
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode != 0 or not dst.exists():
         raise RuntimeError(f"Conversion audio impossible : {r.stderr[-400:]}")
@@ -56,10 +73,10 @@ def split_audio(path: Path, seconds: int = 600) -> list[tuple[Path, float]]:
     out_dir.mkdir(exist_ok=True)
     subprocess.run(
         ["ffmpeg", "-y", "-i", str(path), "-f", "segment", "-segment_time", str(seconds),
-         "-c", "copy", str(out_dir / "part_%04d.mp3")],
+         "-c", "copy", str(out_dir / f"part_%04d{AUDIO_EXT}")],
         capture_output=True, check=True,
     )
-    parts = sorted(out_dir.glob("part_*.mp3"))
+    parts = sorted(out_dir.glob(f"part_*{AUDIO_EXT}"))
     return [(p, i * float(seconds)) for i, p in enumerate(parts)]
 
 
@@ -132,13 +149,13 @@ def _fetch_ytdlp(url, workdir, lang, prefer_subtitles, progress) -> Fetched:
                     return Fetched(audio=None, text=text, title=title, duration=duration)
 
     progress("Téléchargement de la piste audio…")
-    opts = {**base_opts, "format": "bestaudio/best"}
+    opts = {**base_opts, "format": "bestaudio[abr<=128]/bestaudio/best"}   # inutile de télécharger plus gros que nécessaire
     with yt_dlp.YoutubeDL(opts) as ydl:
         ydl.download([url])
     files = [p for p in workdir.glob("src.*") if p.suffix not in {".vtt", ".srt", ".part"}]
     if not files:
         raise RuntimeError("aucun fichier téléchargé")
-    audio = normalize_audio(files[0], workdir / "audio.mp3")
+    audio = normalize_audio(files[0], workdir / f"audio{AUDIO_EXT}")
     return Fetched(audio=audio, title=title, duration=duration or probe_duration(audio))
 
 
@@ -153,5 +170,5 @@ def _fetch_direct(url: str, workdir: Path) -> Fetched:
         with open(dst, "wb") as f:
             for chunk in r.iter_bytes(1 << 20):
                 f.write(chunk)
-    audio = normalize_audio(dst, workdir / "audio.mp3")
+    audio = normalize_audio(dst, workdir / f"audio{AUDIO_EXT}")
     return Fetched(audio=audio, title=Path(urlparse(url).path).stem or None, duration=probe_duration(audio))
