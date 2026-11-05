@@ -5,6 +5,9 @@ from typing import Any
 
 from . import config
 
+ICONS = ["objectif", "equipe", "planning", "decision", "action", "risque", "idee", "budget", "securite",
+         "technique", "communication", "juridique", "qualite", "question", "jalon", "horloge"]
+ICON = {"type": "string", "enum": ICONS, "description": "Pictogramme qui illustre le mieux le sujet (pour les diapositives)."}
 STR = {"type": "string"}
 STR_LIST = {"type": "array", "items": STR}
 
@@ -30,6 +33,9 @@ ANALYSIS_SCHEMA: dict[str, Any] = {
             "items": {"type": "object", "properties": {
                 "sujet": STR,
                 "discussion": {**STR, "description": "Contenu des échanges, fidèle et neutre, au passé."},
+                "essentiel": {**STR, "description": "Diapositive : l'idée à retenir du sujet en UNE phrase de 150 caractères maximum."},
+                "points_cles": {**STR_LIST, "description": "Diapositive : 2 à 4 puces très courtes (90 caractères max chacune), factuelles."},
+                "icone": ICON,
                 "positions": {**STR_LIST, "description": "Positions/avis divergents notables, avec attribution si connue."},
                 "decisions": STR_LIST},
                 "required": ["sujet", "discussion"]},
@@ -53,6 +59,21 @@ ANALYSIS_SCHEMA: dict[str, Any] = {
         "recommandations": {**STR_LIST, "description": "Recommandations / arbitrages attendus de la direction."},
         "questions_ouvertes": STR_LIST,
         "prochaine_reunion": {**STR, "description": "Date/objet de la prochaine réunion si évoquée."},
+        "messages_cles": {
+            "type": "array",
+            "description": "Diapositives : 3 à 5 messages à retenir de la réunion, du plus important au moins important.",
+            "items": {"type": "object", "properties": {
+                "titre": {**STR, "description": "Titre percutant de 60 caractères maximum."},
+                "detail": {**STR, "description": "Précision factuelle de 140 caractères maximum."},
+                "icone": ICON}, "required": ["titre"]},
+        },
+        "chiffres_cles": {
+            "type": "array",
+            "description": "Diapositives : 0 à 4 chiffres RÉELLEMENT cités pendant la réunion (jamais calculés ni estimés).",
+            "items": {"type": "object", "properties": {
+                "valeur": {**STR, "description": "Ex. « -18 % », « 120 k€ », « 3 sites »."},
+                "libelle": {**STR, "description": "Ce que mesure le chiffre, 40 caractères max."}}, "required": ["valeur", "libelle"]},
+        },
     },
     "required": ["titre", "objet", "resume", "points_abordes", "decisions", "actions"],
 }
@@ -69,7 +90,9 @@ contexte le permet, sans extrapoler.
 exprimés) et ce qui a seulement été DISCUTÉ.
 - Style : phrases complètes, factuelles, au passé pour les échanges, à l'infinitif ou au présent pour les actions. \
 Pas de jugement ni d'interprétation.
-- Rédige en français, quelle que soit la langue source (traduis fidèlement si nécessaire)."""
+- Rédige en français, quelle que soit la langue source (traduis fidèlement si nécessaire).
+- Les champs destinés aux diapositives (messages_cles, chiffres_cles, essentiel, points_cles, icone) doivent être courts, \
+percutants et strictement fidèles au contenu : aucun chiffre qui n'a pas été prononcé, jamais de calcul ni d'estimation."""
 
 
 def _context_block(meta: dict[str, Any]) -> str:
@@ -146,7 +169,7 @@ def normalize(a: dict[str, Any], meta: dict[str, Any]) -> dict[str, Any]:
     for k in ("titre", "date", "lieu", "objet", "resume", "prochaine_reunion"):
         a[k] = (a.get(k) or "").strip()
     for k in ("participants", "ordre_du_jour", "points_abordes", "decisions", "actions",
-              "risques_vigilance", "enjeux", "recommandations", "questions_ouvertes"):
+              "risques_vigilance", "enjeux", "recommandations", "questions_ouvertes", "messages_cles", "chiffres_cles"):
         a[k] = a.get(k) or []
     a["titre"] = a["titre"] or meta.get("title") or "Réunion"
     a["date"] = a["date"] or meta.get("meeting_date") or ""

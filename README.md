@@ -18,6 +18,8 @@ et obtenez automatiquement une **transcription**, puis un **procès-verbal**, un
 | **PV** | Formel : participants/statuts, ordre du jour, délibérations point par point (positions, décisions), relevé des décisions, plan d'actions, signatures |
 | **CR** | Concis : résumé, points abordés, décisions, actions (responsable, échéance, priorité) |
 | **Note de synthèse** | 1-2 pages orientée décideur : synthèse, enjeux, points clés, risques, actions prioritaires, arbitrages attendus |
+| **Présentation** (.pptx) | Sobre : une diapositive par sujet (résumé, positions, décisions), tableaux des décisions et des actions, risques, suite. Aucune illustration |
+| **Présentation illustrée** (.pptx) | Visuelle : image d'ouverture, **chiffres clés**, « l'essentiel » en cartes avec **pictogrammes**, avatars des participants, une diapositive illustrée par sujet, décisions en cartes, plan d'actions avec **graphiques** (priorités, charge par responsable), **frise** des prochaines étapes, risques, questions ouvertes |
 
 Excel : un onglet par tableau (Participants, Décisions, Actions filtrables) + onglet Transcription horodatée.
 La transcription est **éditable** (noms propres, acronymes) puis les 3 documents se **régénèrent** en un clic.
@@ -102,5 +104,5 @@ Ou avec Docker : `docker build -t gmeeting . && docker run -p 8000:8000 -v gmeet
 ```bash
 pip install -r requirements-dev.txt && pytest
 # Scénarios navigateur (appel, coupure réseau, rechargement…) – nécessite playwright :
-python tests/e2e/run_stub.py &  node tests/e2e/continuity.js
+python tests/e2e/run_stub.py &  node tests/e2e/continuity.js && node tests/e2e/decks.js
 ```

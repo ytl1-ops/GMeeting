@@ -18,7 +18,7 @@ import shutil
 
 from fastapi import Request
 
-from . import branding, config, db, exporters, generate, pipeline, recordings, transcribe
+from . import branding, config, db, exporters, generate, pipeline, recordings, slides, transcribe
 
 STATIC = Path(__file__).parent / "static"
 basic = HTTPBasic(auto_error=False)
@@ -259,6 +259,9 @@ def preview(mid: str, doc_type: str):
     m = _meeting(mid)
     if not m.get("analysis"):
         raise HTTPException(409, "Analyse non disponible pour cette réunion")
+    if doc_type in exporters.DECKS:      # présentations : liste de diapositives (même modèle que le fichier .pptx)
+        visual = exporters.DECKS[doc_type]
+        return {"slides": slides.build_slides(m["analysis"], visual), "visual": visual}
     if doc_type not in exporters.BUILDERS:
         raise HTTPException(404, "Type de document inconnu")
     return exporters.BUILDERS[doc_type](m["analysis"])

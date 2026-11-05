@@ -2,7 +2,9 @@
 /* GMeeting – interface (JS natif, sans build). Tout contenu dynamique passe par textContent. */
 
 const $app = document.getElementById("app");
-const DOC_LABELS = { pv: "Procès-verbal", cr: "Compte rendu", note: "Note de synthèse" };
+const DOC_LABELS = { pv: "Procès-verbal", cr: "Compte rendu", note: "Note de synthèse", deck: "Présentation", deck_visual: "Présentation illustrée" };
+const DECK_TYPES = new Set(["deck", "deck_visual"]);
+const EMOJI = { objectif: "🎯", equipe: "👥", planning: "📅", decision: "✅", action: "➡️", risque: "⚠️", idee: "💡", budget: "💶", securite: "🛡️", technique: "⚙️", communication: "💬", juridique: "📄", qualite: "📊", question: "❓", jalon: "🚩", horloge: "🕒" };
 const STATUS = { recording: "Enregistrement", pending: "En attente", queued: "En file", processing: "Traitement", analyzing: "Rédaction", done: "Prêt", error: "Erreur" };
 
 function el(tag, attrs = {}, ...kids) {
@@ -321,13 +323,15 @@ async function viewMeeting(id) {
 }
 
 async function docView(host, id, type) {
+  const formats = DECK_TYPES.has(type) ? [["pptx", "PowerPoint"]] : [["pdf", "PDF"], ["docx", "Word"], ["xlsx", "Excel"]];
   const exp = el("div", { class: "exports no-print" }, el("strong", {}, "Exporter :"),
-    ...[["pdf", "PDF"], ["docx", "Word"], ["xlsx", "Excel"]].map(([f, l]) =>
+    ...formats.map(([f, l]) =>
       el("a", { class: "btn sec", href: `/api/meetings/${id}/export/${type}.${f}`, download: true }, "⬇ " + l)));
   host.replaceChildren(exp, el("p", { class: "hint" }, "Chargement…"));
   try {
     const [blocks, br] = await Promise.all([api(`/meetings/${id}/preview/${type}`), api("/branding")]);
-    host.replaceChildren(exp, brandBand(br), renderBlocks(blocks), brandFoot(br));
+    if (Array.isArray(blocks)) host.replaceChildren(exp, brandBand(br), renderBlocks(blocks), brandFoot(br));
+    else host.replaceChildren(exp, el("p", { class: "hint" }, `${blocks.slides.length} diapositives. Aperçu simplifié : le fichier PowerPoint contient les pictogrammes vectoriels modifiables, les images et les graphiques natifs${blocks.visual ? "" : " (version sobre : texte et tableaux)"}.`), renderSlides(blocks, br));
   } catch (e) { host.append(el("div", { class: "err" }, e.message)); }
 }
 
@@ -386,6 +390,60 @@ async function viewBrand() {
       el("div", { class: "row", style: "margin-top:14px" }, save)),
     prev);
   refresh();
+}
+
+/* ---- aperçu des diapositives (même modèle que le fichier .pptx) ---- */
+// append() écrit « null » dans la page si on lui passe null : on filtre les éléments absents
+const put = (node, ...kids) => node.append(...kids.flat().filter((k) => k != null && k !== false));
+function renderSlides(spec, br) {
+  const wrap = el("div", { class: "slides", style: `--sc:${br.color || "#1F3A5F"}` });
+  const ic = (n) => el("span", { class: "emo" }, EMOJI[n] || "🎯");
+  const head = (d) => el("div", { class: "sh" }, spec.visual && d.icon ? el("span", { class: "badge-i" }, ic(d.icon)) : null, el("span", { class: "st" }, d.title));
+  const tone = (t) => ({ primary: "var(--sc)", green: "#2e9e5b", red: "#d64545", amber: "#d98a00", purple: "#7b5ea7" }[t] || "var(--sc)");
+  for (const d of spec.slides) {
+    const body = el("div", { class: "si" });
+    if (d.layout === "cover") {
+      put(body, el("div", { class: "cv-sub" }, d.subtitle), el("div", { class: "cv-t" }, d.title), el("div", { class: "cv-m" }, d.meta.map(([k, v]) => el("div", {}, spec.visual ? "" : k + " : ", v))));
+    } else if (d.layout === "kpis") {
+      put(body, head(d), el("div", { class: "kp" }, d.tiles.map((t) => el("div", { class: "kt" }, ic(t.icon), el("b", {}, t.value), el("small", {}, t.label)))),
+        d.extra.length ? el("div", { class: "kp x" }, d.extra.map((t) => el("div", { class: "kt" }, el("b", {}, t.value), el("small", {}, t.label)))) : null,
+        d.highlight ? el("div", { class: "hl" }, d.highlight) : null);
+    } else if (d.layout === "cards") {
+      put(body, head(d), el("div", { class: "cd" }, d.items.map((it) => el("div", { class: "c", style: `border-top-color:${tone(d.tone)}` },
+        el("span", { class: "badge-i", style: `background:${tone(d.tone)}` }, ic(it.icon)), el("div", {}, el("b", {}, it.title), it.detail ? el("small", {}, it.detail) : null, it.chip ? el("em", { style: `color:${tone(d.tone)}` }, it.chip) : null)))));
+    } else if (d.layout === "bullets") {
+      put(body, head(d), d.paragraph ? el("p", {}, d.paragraph) : null, d.items.length ? el("ul", {}, d.items.map((i) => el("li", {}, i))) : null);
+    } else if (d.layout === "topic") {
+      if (spec.visual) {
+        body.classList.add("tp");
+        put(body, el("div", { class: "tl" }, el("span", { class: "badge-i big" }, ic(d.icon)), el("small", {}, "POINT " + d.number), el("b", {}, d.title)),
+          el("div", { class: "tr" }, el("p", { class: "sum" }, d.summary), d.bullets.length ? el("ul", {}, d.bullets.map((i) => el("li", {}, i))) : null,
+            ...d.decisions.map((x) => el("div", { class: "dec" }, "✅ " + x))));
+      } else {
+        put(body, head(d), el("p", {}, d.summary),
+          d.bullets.length ? el("div", { class: "sec" }, el("small", {}, (d.bullets_label || "Points").toUpperCase()), el("ul", {}, d.bullets.map((i) => el("li", {}, i)))) : null,
+          d.decisions.length ? el("div", { class: "sec g" }, el("small", {}, "DÉCISIONS"), el("ul", {}, d.decisions.map((i) => el("li", {}, i)))) : null);
+      }
+    } else if (d.layout === "table") {
+      const tbl = el("table", {}, el("thead", {}, el("tr", {}, d.headers.map((h) => el("th", {}, h)))), el("tbody", {}, d.rows.map((r) => el("tr", {}, r.map((c) => el("td", {}, c))))));
+      const side = d.charts ? chartsPreview(d.charts) : null;
+      put(body, head(d), el("div", { class: side ? "tb2" : "" }, tbl, side));
+    } else if (d.layout === "people") {
+      put(body, head(d), el("div", { class: "pp" }, d.people.map((p) => el("div", {}, el("span", { class: "av" }, p.nom.split(/[\s-]+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase()), el("b", {}, p.nom), el("small", {}, p.fonction || ""), el("em", { class: "s-" + p.statut }, p.statut)))));
+    } else if (d.layout === "timeline") {
+      put(body, head(d), el("div", { class: "tm" }, d.steps.map((s, i) => el("div", {}, el("b", {}, s.when), el("span", { class: "dot", style: `background:${tone(s.tone === "red" ? "red" : s.tone === "green" ? "green" : "amber")}` }, String(i + 1)), el("div", { class: "tc" }, el("b", {}, s.label), el("small", {}, s.who))))));
+    }
+    wrap.append(el("div", { class: "sl " + d.layout + (spec.visual ? " vis" : "") }, body));
+  }
+  return wrap;
+}
+function chartsPreview(ch) {
+  const p = ch.priorities, tot = Math.max(1, p.haute + p.moyenne + p.basse);
+  const a = (p.haute / tot) * 360, b = a + (p.moyenne / tot) * 360;
+  const box = el("div", { class: "ch" }, el("div", { class: "donut", style: `background:conic-gradient(#d64545 0 ${a}deg,#d98a00 ${a}deg ${b}deg,#2e9e5b ${b}deg 360deg)` }),
+    el("small", {}, `${p.haute} haute · ${p.moyenne} moyenne · ${p.basse} basse`));
+  if (ch.owners.length) { const m = Math.max(...ch.owners.map((o) => o[1])); box.append(...ch.owners.map(([n, c]) => el("div", { class: "bar" }, el("span", {}, n), el("i", { style: `width:${(c / m) * 100}%` })))); }
+  return box;
 }
 
 function renderBlocks(blocks) {

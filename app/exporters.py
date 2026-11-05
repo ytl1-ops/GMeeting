@@ -11,11 +11,14 @@ import unicodedata
 from typing import Any
 from xml.sax.saxutils import escape
 
-DOC_TYPES = {"pv": "Procès-verbal", "cr": "Compte rendu", "note": "Note de synthèse"}
+DOC_TYPES = {"pv": "Procès-verbal", "cr": "Compte rendu", "note": "Note de synthèse",
+             "deck": "Présentation", "deck_visual": "Présentation illustrée"}
+DECKS = {"deck": False, "deck_visual": True}   # type → présentation illustrée ?
 FORMATS = {
     "pdf": "application/pdf",
     "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 }
 NAVY = "1F3A5F"  # couleur par défaut ; surchargée par le gabarit (branding)
 PRIO_ORDER = {"haute": 0, "moyenne": 1, "basse": 2}
@@ -483,13 +486,22 @@ def render_xlsx(blocks: list[Block], title: str, transcript: str | None = None, 
 def export(analysis: dict, doc_type: str, fmt: str, transcript: str | None = None,
            brand: dict | None = None) -> tuple[bytes, str, str]:
     """Retourne (contenu, type MIME, nom de fichier)."""
-    if doc_type not in BUILDERS:
+    if doc_type not in BUILDERS and doc_type not in DECKS:
         raise ValueError(f"Type de document inconnu : {doc_type}")
     if fmt not in FORMATS:
         raise ValueError(f"Format inconnu : {fmt}")
-    blocks = BUILDERS[doc_type](analysis)
-    footer = _footer_text(analysis, doc_type)
+    if (doc_type in DECKS) != (fmt == "pptx"):
+        raise ValueError("Les présentations s'exportent en .pptx ; les autres documents en PDF, Word ou Excel.")
     brand = brand or DEFAULT_BRAND
+    footer = _footer_text(analysis, doc_type)
+    if doc_type in DECKS:
+        from . import pptx_export, slides
+        visual = DECKS[doc_type]
+        data = pptx_export.render(slides.build_slides(analysis, visual), brand, visual, analysis["titre"])
+        ascii_title = unicodedata.normalize("NFKD", analysis["titre"]).encode("ascii", "ignore").decode()
+        slug = re.sub(r"[^A-Za-z0-9]+", "_", ascii_title).strip("_")[:50] or "reunion"
+        return data, FORMATS["pptx"], f"{'PRESENTATION_ILLUSTREE' if visual else 'PRESENTATION'}_{slug}.pptx"
+    blocks = BUILDERS[doc_type](analysis)
     if fmt == "pdf":
         data = render_pdf(blocks, footer, brand)
     elif fmt == "docx":
