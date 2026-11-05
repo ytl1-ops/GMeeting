@@ -36,6 +36,12 @@ L'enregistreur est conçu pour **ne jamais perdre une réunion**, y compris apr�
 * **Récupération** : page fermée ou rechargée en pleine réunion → bannière « Récupérer et générer les documents ».
   Un enregistrement non finalisé côté serveur peut aussi être finalisé depuis sa fiche.
 * **Fin d'enregistrement hors-ligne** : la finalisation reprend seule au retour du réseau.
+* **Mode avion** : l'enregistrement démarre, se poursuit et se termine **sans aucun réseau**. L'identifiant et l'heure de
+  début sont générés sur l'appareil ; la réunion est déclarée au serveur au retour de la connexion (avec sa vraie date),
+  puis l'audio est envoyé et les documents générés automatiquement. Un appel ne peut pas couper un micro en mode avion.
+  Astuce : activez le mode avion puis rallumez le Wi-Fi seul si vous voulez garder l'envoi en continu sans réseau mobile.
+  Prérequis : avoir ouvert l'application **une fois en ligne** (le service worker met l'interface en cache) ; l'installer sur
+  l'écran d'accueil est recommandé. Le démarrage affiche un conseil tant que ce n'est pas prêt.
 * **Marqueurs ⭐** : repérez les moments importants ; ils orientent la rédaction.
 * **Indicateur REC** permanent dans l'en-tête, même en naviguant ; application **installable** (PWA) et interface
   ouvrable hors-ligne.
@@ -44,7 +50,9 @@ L'enregistreur est conçu pour **ne jamais perdre une réunion**, y compris apr�
 **Limites des navigateurs** : un site web ne peut pas garantir l'enregistrement écran verrouillé ou application en
 arrière-plan (surtout iOS). Gardez la page ouverte et l'écran allumé ; pendant un appel, mettez l'appel en haut-parleur
 ou utilisez le micro d'un autre appareil. Un enregistrement continu en arrière-plan garanti exigerait une application
-native (non fournie). Le démarrage d'une session nécessite que le serveur soit joignable.
+native (non fournie). Hors-ligne, l'audio n'existe que sur l'appareil jusqu'à l'envoi : envoyez-le dans les jours qui suivent (certains
+navigateurs, notamment Safari, purgent les données d'un site peu utilisé ; l'application installée est mieux protégée),
+et gardez de la place (≈ 30-60 Mo par heure). Un avertissement s'affiche si l'espace est faible.
 
 ## Gabarit personnalisable (menu « 🎨 Gabarit »)
 

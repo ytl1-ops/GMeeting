@@ -96,7 +96,9 @@ async function viewHome() {
     list.replaceChildren(...(all.length ? all.map((m) => el("li", {}, el("a", { href: "#/m/" + m.id },
       el("span", {}, el("strong", {}, m.title || "Sans titre"), el("br"), el("span", { class: "hint" }, fmtDate(m.created_at) + (m.duration ? " · " + fmtDur(m.duration) : "") + " · " + ({ url: "lien", upload: "fichier", record: "enregistrement", text: "texte" }[m.source_type] || m.source_type))),
       el("span", { class: "badge " + m.status }, STATUS[m.status] || m.status)))) : [el("li", { class: "empty" }, "Aucune réunion pour l'instant.")]));
-  } catch (e) { toast(e.message); }
+  } catch (e) {
+    list.replaceChildren(el("li", { class: "empty" }, navigator.onLine ? "Liste indisponible : " + e.message : "Hors connexion — la liste des réunions s'affichera au retour du réseau. Vous pouvez néanmoins enregistrer."));
+  }
   loadConfig();
 }
 
@@ -126,6 +128,15 @@ async function orphanBanner() {
       el("div", { class: "row", style: "margin-top:10px" }, go, drop));
     card.before(box);
   }
+}
+
+/** Conseil « mode avion » : l'interface doit avoir été chargée une fois en ligne pour pouvoir s'ouvrir sans réseau. */
+function offlineTip() {
+  const ready = !!navigator.serviceWorker?.controller;
+  return el("p", { class: "hint", style: "max-width:520px;margin:8px auto" },
+    el("strong", {}, "✈ Mode avion : "), "vous pouvez enregistrer sans aucun réseau, donc sans appel qui coupe le micro. ",
+    ready ? "L'application est prête pour l'usage hors-ligne. Activez le mode avion (vous pouvez ensuite rallumer le Wi-Fi seul si besoin) puis lancez l'enregistrement ; l'envoi se fera au retour du réseau."
+      : "Pour cela, rechargez cette page une fois en ligne (installation hors-ligne en cours), puis installez l'application sur l'écran d'accueil si possible.");
 }
 
 function recPanel() {
@@ -158,7 +169,7 @@ function recPanel() {
   };
   const showNet = async () => {
     if (!live) return; const n = await GRec.pendingCount(live.id);
-    net.textContent = !navigator.onLine ? `Hors connexion — l'audio est conservé sur cet appareil et sera envoyé au retour du réseau (${n} segment(s) en attente).`
+    net.textContent = !navigator.onLine ? `✈ Hors connexion (mode avion ?) — l'enregistrement se poursuit normalement. L'audio est conservé sur cet appareil et sera envoyé automatiquement au retour du réseau (${n} segment(s) en attente).`
       : n > 3 ? `Envoi en cours… ${n} segment(s) en attente.` : "";
   };
 
@@ -203,6 +214,7 @@ function recPanel() {
   stopRecorderCleanup = () => { clearInterval(iv); unsub(); }; // la session continue même si l'on change de page
   return el("div", { class: "rec-box" }, el("div", { class: "row", style: "justify-content:center" }, mode), timer, meter, banner,
     el("div", { class: "row", style: "justify-content:center;margin:12px 0" }, btn, pauseBtn, markBtn, stopBtn), tapBtn, net, log,
+    offlineTip(),
     el("p", { class: "hint" }, "L'audio est écrit sur l'appareil puis envoyé en continu : une coupure réseau, un appel téléphonique ou la fermeture de la page ne font pas perdre l'enregistrement. " +
       "Gardez la page ouverte et l'écran allumé. L'accès au micro exige HTTPS ou localhost."));
 }

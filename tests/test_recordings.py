@@ -113,3 +113,30 @@ def test_session_notes_formatting():
     assert recordings.session_notes([], []) == ""
     n = recordings.session_notes([3700], [{"at": 10, "duration": 30, "reason": "micro coupé"}])
     assert "01:01:40" in n and "00:00:10 (≈ 30 s) – micro coupé" in n
+
+
+def test_offline_start_registers_later_with_client_id_and_real_start_time(client, tmp_path):
+    """Mode avion : l'appareil génère l'identifiant et l'heure de début ; le serveur les reçoit bien plus tard."""
+    mid = "abcdef012345"
+    body = {"id": mid, "started_at": "2026-11-05T08:00:00Z", "title": "Réunion en mode avion"}
+    assert client.post("/api/recordings", json=body).json() == {"id": mid}
+    assert client.post("/api/recordings", json=body).json() == {"id": mid}      # renvoi après coupure : idempotent
+    m = client.get(f"/api/meetings/{mid}").json()
+    assert m["status"] == "recording" and m["created_at"].startswith("2026-11-0")  # date du début, pas de l'envoi
+    _upload(client, mid, 0, _webm(tmp_path, 2, 440, "f.webm"))
+    client.post(f"/api/recordings/{mid}/finish", json={})
+    assert _wait(client, mid)["status"] == "done"
+
+
+def test_client_id_validation_and_no_overwrite(client):
+    for bad in ("../../etc", "ABCDEF012345", "short", "g" * 12, "a" * 13):
+        assert client.post("/api/recordings", json={"id": bad}).status_code == 422
+    r = client.post("/api/meetings/text", json={"text": "x"}).json()["id"]
+    assert client.post("/api/recordings", json={"id": r}).status_code == 409   # pas d'écrasement d'une autre réunion
+
+
+def test_future_start_time_is_clamped_and_garbage_ignored(client):
+    a = client.post("/api/recordings", json={"started_at": "2099-01-01T00:00:00Z"}).json()["id"]
+    assert client.get(f"/api/meetings/{a}").json()["created_at"] < "2030"
+    b = client.post("/api/recordings", json={"started_at": "pas une date"}).json()["id"]
+    assert client.get(f"/api/meetings/{b}").json()["status"] == "recording"

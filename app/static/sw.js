@@ -1,6 +1,6 @@
 /* Service worker : installation de l'application et ouverture hors-ligne de l'interface.
    Les appels /api ne sont jamais mis en cache (données de réunion sensibles). */
-const V = "gmeeting-v2";
+const V = "gmeeting-v3";
 const SHELL = ["/", "/style.css", "/app.js", "/recorder.js", "/icon.svg", "/manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {

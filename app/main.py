@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import io
+import re
 import secrets
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
@@ -42,10 +44,10 @@ def _meeting(mid: str) -> dict:
 
 
 # ------------------------------------------------------------------ création
-def _create(title, meeting_date, location, participants, context, language, source_type, source_url=None) -> dict:
+def _create(title, meeting_date, location, participants, context, language, source_type, source_url=None, **extra) -> dict:
     return db.create(title=(title or "").strip(), meeting_date=meeting_date or None, location=location or None,
                      participants=participants or None, context=context or None,
-                     language=(language or "").strip() or None, source_type=source_type, source_url=source_url)
+                     language=(language or "").strip() or None, source_type=source_type, source_url=source_url, **extra)
 
 
 @app.post("/api/meetings/audio")
@@ -116,6 +118,8 @@ def from_text(body: TextIn, bg: BackgroundTasks):
 
 # ------------------------------------------------------------------ enregistrement continu
 class RecStart(BaseModel):
+    id: str | None = None           # identifiant généré par l'appareil (démarrage hors-ligne, mode avion)
+    started_at: str | None = None   # ISO 8601 : vrai début de la réunion, même si l'envoi a lieu bien plus tard
     title: str = ""
     meeting_date: str = ""
     location: str = ""
@@ -127,7 +131,25 @@ class RecStart(BaseModel):
 @app.post("/api/recordings")
 def rec_start(body: RecStart):
     """Ouvre une session d'enregistrement : l'audio arrive ensuite segment par segment."""
-    m = _create(body.title, body.meeting_date, body.location, body.participants, body.context, body.language, "record")
+    extra: dict = {}
+    if body.id is not None:
+        if not re.fullmatch(r"[0-9a-f]{12}", body.id):
+            raise HTTPException(422, "Identifiant invalide")
+        existing = db.get(body.id)
+        if existing:  # renvoi après coupure réseau : idempotent, jamais d'écrasement d'une autre réunion
+            if existing["source_type"] == "record" and existing["status"] == "recording":
+                return {"id": body.id}
+            raise HTTPException(409, "Identifiant déjà utilisé")
+        extra["id"] = body.id
+    if body.started_at:
+        try:
+            dt = datetime.fromisoformat(body.started_at.replace("Z", "+00:00"))
+            local = dt.astimezone().replace(tzinfo=None) if dt.tzinfo else dt
+            extra["created_at"] = min(local, datetime.now()).isoformat(timespec="seconds")
+        except ValueError:
+            pass
+    m = _create(body.title, body.meeting_date, body.location, body.participants, body.context, body.language, "record",
+                **extra)
     db.update(m["id"], status="recording", progress="Enregistrement en cours")
     return {"id": m["id"]}
 

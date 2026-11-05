@@ -59,9 +59,30 @@ const GRec = (() => {
   const listeners = new Set();
   const notify = (id) => listeners.forEach((f) => f(id));
 
+  /** Identifiant généré sur l'appareil : permet de démarrer sans réseau (mode avion). */
+  const genId = () => [...crypto.getRandomValues(new Uint8Array(6))].map((b) => b.toString(16).padStart(2, "0")).join("");
+
+  /** Déclare la session au serveur. 'offline' = injoignable (réseau coupé / erreur serveur) → on réessaiera plus tard. */
+  async function register(id, meta, startedAt) {
+    let r;
+    try { r = await fetch("/api/recordings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...meta, id, started_at: startedAt }) }); }
+    catch { return "offline"; }
+    if (r.status >= 500) return "offline";
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || "HTTP " + r.status);
+    return "ok";
+  }
+  /** Idempotent. Les sessions créées hors-ligne sont déclarées ici, au premier envoi possible. */
+  async function ensureRegistered(id) {
+    const ses = await store.get(SES, id);
+    if (!ses || ses.registered) return;
+    if ((await register(id, ses.meta || {}, ses.startedAt)) !== "ok") throw new Error("serveur injoignable");
+    await store.put(SES, { ...(await store.get(SES, id)), registered: true });
+  }
+
   function flush(id) {
     if (flushing.has(id)) return flushing.get(id);
     const p = (async () => {
+      await ensureRegistered(id);
       for (;;) {
         const chunks = await store.chunksOf(id);
         if (!chunks.length) return;
@@ -144,9 +165,7 @@ const GRec = (() => {
 
     async start(meta, withTab) {
       if (!Session.supported()) throw new Error("Enregistrement non supporté par ce navigateur.");
-      const r = await fetch("/api/recordings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(meta) });
-      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || "Serveur injoignable : impossible de démarrer l'enregistrement.");
-      this.id = (await r.json()).id; this.meta = meta;
+      this.id = genId(); this.meta = meta; this.startedAt = new Date().toISOString();
       this.ctx = new AudioContext();
       this.dest = this.ctx.createMediaStreamDestination();
       this.analyser = this.ctx.createAnalyser(); this.analyser.fftSize = 512;
@@ -154,10 +173,13 @@ const GRec = (() => {
       try {
         await this.attachMic();
         if (withTab) await this.attachTab();
-      } catch (e) { this.teardown(); fetch("/api/meetings/" + this.id, { method: "DELETE" }).catch(() => {}); throw e; }
-      this.intended = "recording"; this.t0 = Date.now(); this.startedAt = new Date().toISOString();
+        // Réseau absent (mode avion) : on démarre quand même ; la déclaration au serveur sera faite plus tard.
+        this.registered = (await register(this.id, meta, this.startedAt)) === "ok";
+      } catch (e) { this.teardown(); throw e; }
+      this.storageCheck();
+      this.intended = "recording"; this.t0 = Date.now();
+      await this.persist();   // la session doit exister localement avant le premier segment (sinon l'envoi ne saurait pas la déclarer)
       this.startPart();
-      await this.persist();
       this.wakeLock();
       this._vis = () => { this.wakeLock(); this.check(); };
       document.addEventListener("visibilitychange", this._vis);
@@ -280,9 +302,18 @@ const GRec = (() => {
     pause() { if (this.intended !== "recording") return; this.acc = this.elapsed(); this.intended = "paused"; this.t0 = 0; try { this.rec.pause(); } catch {} this.setState("paused"); }
     resume() { if (this.intended !== "paused") return; this.intended = "recording"; this.t0 = Date.now(); try { this.rec.resume(); } catch {} this.setState(this.openInt ? "interrupted" : "recording"); }
     mark() { this.markers.push(Math.round(this.elapsed())); this.persist(); return this.markers.length; }
-    persist() {
-      return store.put(SES, { id: this.id, meta: this.meta, markers: this.markers, events: this.events, startedAt: this.startedAt,
+    async persist() {
+      const cur = (await store.get(SES, this.id)) || {};
+      await store.put(SES, { registered: !!this.registered, ...cur, id: this.id, meta: this.meta, markers: this.markers, events: this.events, startedAt: this.startedAt,
         payload: { meta: this.meta, markers: this.markers, interruptions: this.events } });
+    }
+    /** Hors-ligne tout l'audio vit sur l'appareil : on demande un stockage durable et on prévient s'il est trop juste. */
+    async storageCheck() {
+      try {
+        await navigator.storage?.persist?.();
+        const e = await navigator.storage?.estimate?.();
+        if (e?.quota && e.quota - e.usage < 300 * 1024 * 1024) this.onEvent("⚠ Espace de stockage faible sur l'appareil : libérez de la place ou rétablissez le réseau pour envoyer l'audio");
+      } catch {}
     }
 
     /** Arrête, vide les derniers segments et lance le traitement. Lève une erreur si le réseau manque (le reste est repris plus tard). */

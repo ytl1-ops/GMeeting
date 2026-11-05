@@ -68,7 +68,7 @@ def create(**fields: Any) -> dict[str, Any]:
     qs = ", ".join("?" for _ in data)
     with _lock, _conn() as c:
         c.execute(f"INSERT INTO meetings ({cols}) VALUES ({qs})", list(data.values()))
-    return get(mid)  # type: ignore[return-value]
+    return get(data["id"])  # type: ignore[return-value]  (l'appelant peut imposer son propre id)
 
 
 def update(mid: str, **fields: Any) -> None:

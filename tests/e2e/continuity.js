@@ -72,6 +72,39 @@ async function waitStatus(id, want, ms = 40000) { const t = Date.now(); for (;;)
   await p.evaluate(() => (location.hash = '#/')); await p.waitForSelector('text=Terminer et générer');
   await p.click('text=Terminer et générer'); await p.waitForSelector('.doc', { timeout: 40000 });
 
+  // ---- 6. MODE AVION : l'app s'ouvre hors-ligne, l'enregistrement démarre sans réseau, rattrapage au retour -----
+  await p.goto(B + '/'); await p.waitForSelector('.rec-btn');
+  await p.waitForFunction(() => navigator.serviceWorker.controller, null, { timeout: 15000 });
+  await sleep(1500);                                                      // laisse le service worker finir la mise en cache
+  await ctx.setOffline(true);
+  await p.reload(); await p.waitForSelector('.rec-btn', { timeout: 10000 });
+  ok(true, "l'application s'ouvre sans réseau (cache du service worker)");
+  const t0 = Date.now(); await p.click('.rec-btn'); await p.waitForSelector('text=Terminer et générer');
+  id = await p.evaluate(() => live.id);
+  ok(/^[0-9a-f]{12}$/.test(id), 'enregistrement démarré hors-ligne, identifiant généré sur l\'appareil (' + id + ')');
+  await sleep(5500);
+  ok((await fetch(B + '/api/meetings/' + id)).status === 404, 'le serveur ne connaît pas encore la session (mode avion)');
+  ok(await p.evaluate(() => GRec.pendingCount(live.id)) >= 1, 'audio conservé sur l\'appareil');
+  ok(await p.textContent('text=mode avion').then(Boolean).catch(() => false), 'message « mode avion » affiché');
+  await ctx.setOffline(false); await p.evaluate(() => window.dispatchEvent(new Event('online')));
+  let reg = null; for (let i = 0; i < 40 && !reg; i++) { await sleep(500); const r = await fetch(B + '/api/meetings/' + id); if (r.ok) reg = await r.json(); }
+  ok(reg && reg.status === 'recording', 'session déclarée au serveur dès le retour du réseau');
+  const regAt = Date.now(), created = reg ? Date.parse(reg.created_at) : NaN;   // même machine → même fuseau
+  ok(Math.abs(created - t0) < 3000 && regAt - created > 4000, `date de début conservée (début ${Math.round((created - t0) / 1000)} s d'écart, déclaré ${Math.round((regAt - created) / 1000)} s plus tard)`);
+  await sleep(2500); await p.click('text=Terminer et générer'); await p.waitForSelector('.doc', { timeout: 40000 });
+  m = await api('/meetings/' + id);
+  ok(m.status === 'done' && m.duration > 6, `réunion enregistrée en mode avion puis générée (${m.duration?.toFixed(1)} s)`);
+
+  // ---- 7. MODE AVION du début à la fin : tout est terminé hors-ligne, la finalisation se fait seule au retour -------
+  await p.goto(B + '/'); await p.waitForSelector('.rec-btn'); await sleep(800);
+  await ctx.setOffline(true);
+  await p.click('.rec-btn'); await p.waitForSelector('text=Terminer et générer'); id = await p.evaluate(() => live.id);
+  await sleep(4500); await p.click('text=Terminer et générer'); await sleep(1500);
+  ok(await p.evaluate(() => live === null), 'enregistrement terminé hors-ligne sans erreur');
+  await ctx.setOffline(false); await p.evaluate(() => window.dispatchEvent(new Event('online')));
+  m = await waitStatus(id, ['done', 'error'], 60000);
+  ok(m.status === 'done' && m.duration > 3, `réunion 100 % hors-ligne finalisée au retour du réseau (${m.duration?.toFixed(1)} s)`);
+
   console.log('erreurs JS:', errs); ok(errs.length === 0, 'aucune erreur JavaScript');
   await b.close(); console.log(fails ? `\n${fails} ÉCHEC(S)` : '\nTOUS LES SCÉNARIOS PASSENT'); process.exit(fails ? 1 : 0);
 })().catch(e => { console.error('CRASH', e); process.exit(2); });
