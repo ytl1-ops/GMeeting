@@ -6,6 +6,7 @@ from pathlib import Path
 
 DATA_DIR = Path(os.getenv("DATA_DIR", Path(__file__).resolve().parent.parent / "data"))
 AUDIO_DIR = DATA_DIR / "audio"
+ATTACH_DIR = DATA_DIR / "attachments"
 ARCHIVE_DIR = DATA_DIR / "archive"        # audio conservé (KEEP_AUDIO), un fichier Opus compact par réunion
 DB_PATH = DATA_DIR / "gmeeting.db"
 
@@ -29,5 +30,10 @@ MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "1024"))
 # Au-delà de ce volume de texte, l'analyse passe en deux temps (résumés partiels puis synthèse).
 MAX_DIRECT_CHARS = int(os.getenv("MAX_DIRECT_CHARS", "350000"))
 
-for d in (DATA_DIR, AUDIO_DIR, ARCHIVE_DIR):
+MAX_ATTACH_MB = int(os.getenv("MAX_ATTACH_MB", "25"))
+MAX_ATTACH_PER_MEETING = int(os.getenv("MAX_ATTACH_PER_MEETING", "20"))
+# Budget de texte des pièces jointes transmis au modèle de rédaction (réparti entre elles)
+ATTACH_CONTEXT_CHARS = int(os.getenv("ATTACH_CONTEXT_CHARS", "120000"))
+
+for d in (DATA_DIR, AUDIO_DIR, ARCHIVE_DIR, ATTACH_DIR):
     d.mkdir(parents=True, exist_ok=True)

@@ -49,7 +49,7 @@ async function route() {
 function metaFields() {
   const f = (id, label, type = "text", ph = "") => el("div", {}, el("label", { for: id }, label), el("input", { id, type, placeholder: ph }));
   return el("details", { class: "card-sub" },
-    el("summary", { class: "hint", style: "cursor:pointer;margin:10px 0" }, "Informations sur la réunion (facultatif, améliore la qualité du rendu)"),
+    el("summary", { class: "hint", style: "cursor:pointer;margin:10px 0" }, "Informations et pièces jointes (facultatif, améliore la qualité du rendu)"),
     el("div", { class: "grid" },
       f("m-title", "Titre", "text", "Ex. COPIL sûreté site Nord"),
       f("m-date", "Date", "date"),
@@ -59,7 +59,36 @@ function metaFields() {
     el("label", { for: "m-part" }, "Participants (nom, fonction – un par ligne)"),
     el("textarea", { id: "m-part", placeholder: "Awa Koné – Directrice sûreté\nMarc Dubois – DSI" }),
     el("label", { for: "m-ctx" }, "Contexte / consignes de rédaction"),
-    el("textarea", { id: "m-ctx", placeholder: "Acronymes, enjeux, ton souhaité, destinataires du document…" }));
+    el("textarea", { id: "m-ctx", placeholder: "Acronymes, enjeux, ton souhaité, destinataires du document…" }),
+    el("label", {}, "Pièces jointes"), attachZone());
+}
+
+/* ---- pièces jointes : e-mails Outlook (.msg/.eml), Word, Excel, PDF, PowerPoint, texte, images ---- */
+const ATT_ACCEPT = ".msg,.eml,.docx,.xlsx,.xlsm,.csv,.pdf,.pptx,.txt,.md,.png,.jpg,.jpeg,.gif,.webp,.doc,.xls,.ppt";
+const KIND_EMOJI = { email: "✉️", word: "📄", excel: "📊", pdf: "📕", powerpoint: "📽️", texte: "📝", image: "🖼️", autre: "📎" };
+const fmtSize = (n) => (n < 1048576 ? Math.max(1, Math.round(n / 1024)) + " Ko" : (n / 1048576).toFixed(1).replace(".", ",") + " Mo");
+let staged = [];                                   // pièces déposées avant la création de la réunion
+const attachmentIds = () => staged.map((a) => a.id);
+
+async function uploadFiles(files, meetingId) {
+  const fd = new FormData(); [...files].forEach((f) => fd.append("files", f)); if (meetingId) fd.append("meeting_id", meetingId);
+  const r = await api("/attachments", { method: "POST", body: fd });
+  (r.errors || []).forEach((e) => toast(e));
+  return r.attachments;
+}
+function attachZone() {
+  const list = el("ul", { class: "att-list" });
+  const input = el("input", { type: "file", multiple: true, accept: ATT_ACCEPT, "aria-label": "Ajouter des pièces jointes" });
+  const draw = () => list.replaceChildren(...staged.map((a) => el("li", {}, el("span", {}, KIND_EMOJI[a.kind] || "📎"),
+    el("span", { class: "an" }, el("b", {}, a.name), el("small", {}, `${a.label} · ${fmtSize(a.size)}${a.snippet ? " — " + a.snippet.slice(0, 90) : ""}`)),
+    el("button", { class: "x", type: "button", "aria-label": "Retirer " + a.name, onclick: async () => { staged = staged.filter((s) => s.id !== a.id); draw(); api("/attachments/" + a.id, { method: "DELETE" }).catch(() => {}); } }, "✕"))));
+  input.onchange = async () => {
+    if (!input.files.length) return;
+    try { staged.push(...(await uploadFiles(input.files))); draw(); } catch (e) { toast(e.message); }
+    input.value = "";
+  };
+  draw();
+  return el("div", {}, input, list, el("p", { class: "hint" }, "Mail Outlook (.msg ou .eml), Word, Excel, PDF, PowerPoint, texte, images. Elles sont lues par l'IA pour mieux rédiger (noms, chiffres, ordre du jour) et insérées en annexe des rapports."));
 }
 const meta = () => ({
   title: val("m-title"), meeting_date: val("m-date"), location: val("m-loc"),
@@ -71,6 +100,7 @@ async function submitForm(path, build, btn) {
   btn && (btn.disabled = true);
   try {
     const { id } = await api(path, build());
+    staged = [];
     location.hash = "#/m/" + id;
   } catch (e) { toast(e.message); btn && (btn.disabled = false); }
 }
@@ -201,7 +231,8 @@ function recPanel() {
   stopBtn.onclick = async () => {
     stopBtn.disabled = true; const s = live;
     try {
-      const done = await s.finish(meta());
+      const done = await s.finish(meta(), { attachment_ids: attachmentIds() });
+      staged = [];
       live = null; clearInterval(iv); unsub();
       location.hash = "#/m/" + s.id;
       if (!done) toast("Enregistrement terminé.");
@@ -234,7 +265,7 @@ function urlPanel() {
   go.onclick = () => {
     const url = input.value.trim(); if (!url) return toast("Collez un lien.");
     submitForm("/meetings/url", () => ({ method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url, prefer_subtitles: subs.checked, ...meta() }) }), go);
+      body: JSON.stringify({ url, prefer_subtitles: subs.checked, attachment_ids: attachmentIds(), ...meta() }) }), go);
   };
   return el("div", {}, el("label", { for: "u-url" }, "Lien de la vidéo ou de l'audio"), input,
     el("label", { style: "display:flex;gap:8px;align-items:center;font-weight:400" }, subs, "Utiliser les sous-titres existants quand ils sont disponibles (plus rapide)"),
@@ -247,7 +278,7 @@ function filePanel() {
   const go = el("button", { class: "btn" }, "Transcrire et générer");
   go.onclick = () => {
     const f = input.files[0]; if (!f) return toast("Choisissez un fichier.");
-    submitForm("/meetings/audio", () => { const fd = new FormData(); fd.append("file", f); fd.append("source_type", "upload"); for (const [k, v] of Object.entries(meta())) fd.append(k, v); return { method: "POST", body: fd }; }, go);
+    submitForm("/meetings/audio", () => { const fd = new FormData(); fd.append("file", f); fd.append("source_type", "upload"); fd.append("attachment_ids", attachmentIds().join(",")); for (const [k, v] of Object.entries(meta())) fd.append(k, v); return { method: "POST", body: fd }; }, go);
   };
   return el("div", {}, el("label", { for: "f-file" }, "Fichier audio ou vidéo (mp3, m4a, wav, mp4, webm…)"), input,
     el("p", { class: "hint" }, "Fonctionne avec les enregistrements Plaud, dictaphone, Teams, Zoom, etc."), el("div", { class: "row" }, go));
@@ -256,7 +287,7 @@ function filePanel() {
 function textPanel() {
   const ta = el("textarea", { id: "t-text", style: "min-height:200px", placeholder: "Collez ici une transcription existante (Teams, Zoom, Otter, sous-titres…)" });
   const go = el("button", { class: "btn" }, "Générer les documents");
-  go.onclick = () => { const text = ta.value.trim(); if (!text) return toast("Collez un texte."); submitForm("/meetings/text", () => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, ...meta() }) }), go); };
+  go.onclick = () => { const text = ta.value.trim(); if (!text) return toast("Collez un texte."); submitForm("/meetings/text", () => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, attachment_ids: attachmentIds(), ...meta() }) }), go); };
   return el("div", {}, el("label", { for: "t-text" }, "Transcription"), ta, el("div", { class: "row", style: "margin-top:10px" }, go));
 }
 
@@ -307,11 +338,12 @@ async function viewMeeting(id) {
       return;
     }
     const tabs = el("div", { class: "tabs", role: "tablist" });
-    [...Object.entries(DOC_LABELS), ["transcript", "Transcription"], ["infos", "Informations"]].forEach(([k, l]) =>
+    [...Object.entries(DOC_LABELS), ["attachments", "Pièces jointes"], ["transcript", "Transcription"], ["infos", "Informations"]].forEach(([k, l]) =>
       tabs.append(el("button", { class: "tab", role: "tab", "aria-selected": k === tab, onclick: () => { tab = k; sessionStorage.setItem("tab", k); lastKey = ""; render(); } }, l)));
     const content = el("div", { class: "card" });
     body.replaceChildren(tabs, content);
     if (DOC_LABELS[tab]) await docView(content, id, tab);
+    else if (tab === "attachments") await attView(content, id);
     else if (tab === "transcript") transcriptView(content);
     else infosView(content);
   };
@@ -330,12 +362,18 @@ async function viewMeeting(id) {
 
 async function docView(host, id, type) {
   const formats = DECK_TYPES.has(type) ? [["pptx", "PowerPoint"]] : [["pdf", "PDF"], ["docx", "Word"], ["xlsx", "Excel"]];
+  let nAtt = 0;
+  try { nAtt = (await api(`/meetings/${id}/attachments`)).filter((a) => a.included).length; } catch {}
+  const annexOn = nAtt > 0 && sessionStorage.getItem("gm_annexes") !== "0";
+  const q = `?annexes=${annexOn ? 1 : 0}`;
+  const toggle = nAtt ? el("label", { class: "annex-toggle" }, el("input", { type: "checkbox", checked: annexOn, onchange: (e) => { sessionStorage.setItem("gm_annexes", e.target.checked ? "1" : "0"); docView(host, id, type); } }),
+    ` Insérer les pièces jointes en annexe (${nAtt})`) : null;
   const exp = el("div", { class: "exports no-print" }, el("strong", {}, "Exporter :"),
     ...formats.map(([f, l]) =>
-      el("a", { class: "btn sec", href: `/api/meetings/${id}/export/${type}.${f}`, download: true }, "⬇ " + l)));
+      el("a", { class: "btn sec", href: `/api/meetings/${id}/export/${type}.${f}${q}`, download: true }, "⬇ " + l)), toggle);
   host.replaceChildren(exp, el("p", { class: "hint" }, "Chargement…"));
   try {
-    const [blocks, br] = await Promise.all([api(`/meetings/${id}/preview/${type}`), api("/branding")]);
+    const [blocks, br] = await Promise.all([api(`/meetings/${id}/preview/${type}${q}`), api("/branding")]);
     if (Array.isArray(blocks)) host.replaceChildren(exp, brandBand(br), renderBlocks(blocks), brandFoot(br));
     else host.replaceChildren(exp, el("p", { class: "hint" }, `${blocks.slides.length} diapositives. Aperçu simplifié : le fichier PowerPoint contient les pictogrammes vectoriels modifiables, les images et les graphiques natifs${blocks.visual ? "" : " (version sobre : texte et tableaux)"}.`), renderSlides(blocks, br));
   } catch (e) { host.append(el("div", { class: "err" }, e.message)); }
@@ -401,6 +439,7 @@ async function viewBrand() {
 /* ---- aperçu des diapositives (même modèle que le fichier .pptx) ---- */
 // append() écrit « null » dans la page si on lui passe null : on filtre les éléments absents
 const put = (node, ...kids) => node.append(...kids.flat().filter((k) => k != null && k !== false));
+const fill = (node, ...kids) => node.replaceChildren(...kids.flat().filter((k) => k != null && k !== false));   // idem pour replaceChildren
 function renderSlides(spec, br) {
   const wrap = el("div", { class: "slides", style: `--sc:${br.color || "#1F3A5F"}` });
   const ic = (n) => el("span", { class: "emo" }, EMOJI[n] || "🎯");
@@ -436,6 +475,8 @@ function renderSlides(spec, br) {
       put(body, head(d), el("div", { class: side ? "tb2" : "" }, tbl, side));
     } else if (d.layout === "people") {
       put(body, head(d), el("div", { class: "pp" }, d.people.map((p) => el("div", {}, el("span", { class: "av" }, p.nom.split(/[\s-]+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase()), el("b", {}, p.nom), el("small", {}, p.fonction || ""), el("em", { class: "s-" + p.statut }, p.statut)))));
+    } else if (d.layout === "image") {
+      put(body, head(d), el("figure", { class: "sl-img" }, el("img", { src: `/api/attachments/${d.id}/image`, alt: d.caption || "Pièce jointe" }), el("figcaption", {}, d.caption || "")));
     } else if (d.layout === "timeline") {
       put(body, head(d), el("div", { class: "tm" }, d.steps.map((s, i) => el("div", {}, el("b", {}, s.when), el("span", { class: "dot", style: `background:${tone(s.tone === "red" ? "red" : s.tone === "green" ? "green" : "amber")}` }, String(i + 1)), el("div", { class: "tc" }, el("b", {}, s.label), el("small", {}, s.who))))));
     }
@@ -465,8 +506,53 @@ function renderBlocks(blocks) {
     else if (b.t === "meta") d.append(el("table", { class: "meta" }, b.rows.map(([k, v]) => el("tr", {}, el("td", {}, k), el("td", {}, v)))));
     else if (b.t === "table") d.append(el("table", {}, el("thead", {}, el("tr", {}, b.headers.map((h) => el("th", {}, h)))), el("tbody", {}, b.rows.map((r) => el("tr", {}, r.map((c) => el("td", {}, c)))))));
     else if (b.t === "signatures") d.append(el("div", { class: "sign" }, b.labels.map((l) => el("div", {}, l))));
+    else if (b.t === "pagebreak") d.append(el("hr", { class: "pb" }));
+    else if (b.t === "image") d.append(el("figure", {}, el("img", { src: `/api/attachments/${b.id}/image`, alt: b.caption || "Pièce jointe", loading: "lazy" }), el("figcaption", {}, b.caption || "")));
   }
   return d;
+}
+
+async function attView(host, id) {
+  const draw = async () => {
+    let list = [];
+    try { list = await api(`/meetings/${id}/attachments`); } catch (e) { toast(e.message); }
+    const input = el("input", { type: "file", multiple: true, accept: ATT_ACCEPT, "aria-label": "Ajouter des pièces jointes" });
+    input.onchange = async () => { try { await uploadFiles(input.files, id); } catch (e) { toast(e.message); } draw(); };
+    const items = list.map((a) => {
+      const detail = el("div", { class: "att-detail", hidden: true });
+      const view = el("button", { class: "btn sec", type: "button" }, "Voir le contenu extrait");
+      view.onclick = async () => {
+        if (!detail.hidden) { detail.hidden = true; return; }
+        try {
+          const c = await api("/attachments/" + a.id + "/content");
+          fill(detail, 
+            Object.keys(c.meta).length ? el("table", { class: "meta-t" }, Object.entries(c.meta).map(([k, v]) => el("tr", {}, el("th", {}, k), el("td", {}, v)))) : null,
+            c.has_image ? el("img", { src: `/api/attachments/${a.id}/image`, alt: a.name, style: "max-width:100%;max-height:260px" }) : null,
+            c.text ? el("pre", {}, c.text.slice(0, 4000) + (c.text.length > 4000 ? "\n[…]" : "")) : null,
+            ...c.tables_data.slice(0, 3).map((t) => el("div", {}, el("small", {}, `${t.name} — ${t.total_rows} ligne(s)`),
+              el("table", { class: "mini-t" }, el("thead", {}, el("tr", {}, t.headers.map((h) => el("th", {}, h)))), el("tbody", {}, t.rows.slice(0, 8).map((r) => el("tr", {}, r.map((x) => el("td", {}, x)))))))),
+            c.note ? el("p", { class: "hint" }, c.note) : null);
+          detail.hidden = false;
+        } catch (e) { toast(e.message); }
+      };
+      return el("li", { class: "att-card" },
+        el("div", { class: "att-head" }, el("span", { class: "emo" }, KIND_EMOJI[a.kind] || "📎"),
+          el("div", { class: "an" }, el("b", {}, a.name), el("small", {}, `${a.label} · ${fmtSize(a.size)}`), el("p", { class: "hint", style: "margin:2px 0 0" }, a.snippet || "")),
+          el("label", { class: "inc", title: "Décochez pour exclure des rapports et de la rédaction" }, el("input", { type: "checkbox", checked: a.included, onchange: async (e) => {
+            try { await api("/attachments/" + a.id, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ included: e.target.checked }) }); } catch (er) { toast(er.message); }
+          } }), " Inclure")),
+        a.note ? el("p", { class: "hint" }, "ℹ " + a.note) : null,
+        el("div", { class: "row" }, view, el("a", { class: "btn sec", href: `/api/attachments/${a.id}/file`, download: a.name }, "⬇ Original"),
+          el("button", { class: "btn danger", type: "button", onclick: async () => { if (!confirm(`Supprimer « ${a.name} » ?`)) return; await api("/attachments/" + a.id, { method: "DELETE" }); draw(); } }, "Supprimer")),
+        detail);
+    });
+    fill(host, 
+      el("p", { class: "hint" }, "Les pièces jointes incluses sont lues par l'IA lors de la rédaction (régénérez pour en tenir compte) et peuvent être insérées en annexe de tous les rapports : PV, CR, note, Word, Excel, PDF, PowerPoint. Le fichier d'origine reste téléchargeable."),
+      el("div", { class: "row", style: "margin:8px 0 14px" }, input,
+        list.length ? el("button", { class: "btn", type: "button", onclick: () => regenerate(id) }, "↻ Régénérer en tenant compte des pièces jointes") : null),
+      list.length ? el("ul", { class: "att-cards" }, items) : el("p", { class: "empty" }, "Aucune pièce jointe. Ajoutez un mail Outlook, un Word, un Excel…"));
+  };
+  await draw();
 }
 
 function transcriptView(host) {
@@ -479,7 +565,9 @@ function transcriptView(host) {
       await regenerate(currentId());
     } catch (e) { toast(e.message); save.disabled = false; }
   };
-  host.replaceChildren(el("p", { class: "hint" }, "Corrigez les noms propres ou acronymes mal transcrits, puis régénérez : les trois documents sont réécrits à partir du texte corrigé."),
+  const player = window.__m?.has_audio ? el("div", { class: "audio-box" }, el("small", {}, "Réécoutez l'enregistrement pour vérifier un passage (audio compact conservé)"),
+    el("audio", { controls: true, preload: "none", src: `/api/meetings/${currentId()}/audio`, style: "width:100%" })) : null;
+  fill(host, player, el("p", { class: "hint" }, "Corrigez les noms propres ou acronymes mal transcrits, puis régénérez : les trois documents sont réécrits à partir du texte corrigé."),
     ta, el("div", { class: "row", style: "margin-top:10px" }, save,
       el("a", { class: "btn sec", href: "data:text/plain;charset=utf-8," + encodeURIComponent(ta.value), download: "transcription.txt" }, "⬇ .txt")));
 }

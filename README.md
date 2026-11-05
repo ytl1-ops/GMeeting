@@ -24,6 +24,36 @@ et obtenez automatiquement une **transcription**, puis un **procès-verbal**, un
 Excel : un onglet par tableau (Participants, Décisions, Actions filtrables) + onglet Transcription horodatée.
 La transcription est **éditable** (noms propres, acronymes) puis les 3 documents se **régénèrent** en un clic.
 
+## Pièces jointes : mails Outlook, Word, Excel, PDF…
+
+Joignez à une réunion les documents qui l'éclairent (convocation reçue par mail, compte rendu précédent, budget…). Ils servent à deux choses :
+
+1. **Mieux rédiger** : leur contenu est transmis à l'IA comme *documents de référence* (jamais comme des propos tenus en réunion, et cités
+   comme tels) pour orthographier les noms et acronymes, retrouver l'ordre du jour, les chiffres, le contexte. L'IA écrit aussi un résumé par pièce.
+2. **Les insérer en annexe de tous les rapports** : PV, CR, note de synthèse (PDF, Word, Excel) et présentations (standard et illustrée).
+
+| Format | Ce qui est extrait et inséré |
+|---|---|
+| **E-mail Outlook `.msg`** et **`.eml`** | de, à, cc, date, objet, corps (HTML converti en texte), liste des pièces jointes du message |
+| **Word `.docx`** | texte, tableaux, titre et auteur |
+| **Excel `.xlsx` / `.csv`** | valeurs calculées (macros jamais exécutées), dates et nombres formatés ; un **onglet par feuille** dans l'export Excel (200 lignes), extrait de 25 lignes en PDF/Word |
+| **PDF** | texte des 30 premières pages (signale un PDF scanné ou protégé) |
+| **PowerPoint `.pptx`** | texte des diapositives et notes |
+| **Texte / images** | texte ; image ré-encodée en PNG et **insérée à l'échelle** |
+| Anciens `.doc/.xls/.ppt`, autres | conservés et téléchargeables, contenu non extrait (enregistrez en `.docx/.xlsx/.pptx`) |
+
+Où : à la création (« Informations et pièces jointes »), ou plus tard dans l'onglet **Pièces jointes** de la réunion (voir le contenu extrait,
+inclure/exclure chaque pièce, télécharger l'original, supprimer, régénérer). À l'export, la case **« Insérer les pièces jointes en annexe »**
+active ou non les annexes. Chaque pièce reste téléchargeable dans son format d'origine.
+
+**Limites honnêtes** : les documents sont insérés sous forme d'*extrait structuré* (texte, tableaux, image), pas fusionnés tels quels (pas de
+copie intégrale d'un Word ou d'un Excel dans le rapport) ; les `.doc/.xls/.ppt` anciens ne sont pas lus ; le `.msg` a été testé sur des fichiers
+conformes à la spécification, pas sur un large échantillon de courriers réels (en cas de souci, enregistrer le mail en `.eml`).
+
+**Sécurité** : une pièce jointe est une donnée non fiable. Jamais exécutée (macros ignorées), exécutables et scripts refusés, archives Office
+contrôlées contre les zip-bombes, images ré-encodées, téléchargement forcé sans interprétation par le navigateur, taille et nombre limités.
+Son contenu est transmis à l'IA entre balises de données avec consigne de n'exécuter aucune instruction qui s'y trouverait.
+
 ## Qualité audio et taille des enregistrements
 
 Configuration choisie sur mesure (poids mesurés sur un signal de test ; sur de la voix réelle, ils sont en général plus bas) :
@@ -118,5 +148,7 @@ Ou avec Docker : `docker build -t gmeeting . && docker run -p 8000:8000 -v gmeet
 ```bash
 pip install -r requirements-dev.txt && pytest
 # Scénarios navigateur (appel, coupure réseau, rechargement…) – nécessite playwright :
-python tests/e2e/run_stub.py &  node tests/e2e/continuity.js && node tests/e2e/decks.js
+python tests/e2e/run_stub.py &  node tests/e2e/continuity.js && node tests/e2e/decks.js && node tests/e2e/audio.js
+# pièces jointes (+ lecteur audio) : python tests/e2e/make_attachments.py /tmp/pj ; KEEP_AUDIO=true python tests/e2e/run_stub.py &
+FILES_DIR=/tmp/pj node tests/e2e/attachments.js
 ```

@@ -329,7 +329,7 @@ const GRec = (() => {
     }
 
     /** Arrête, vide les derniers segments et lance le traitement. Lève une erreur si le réseau manque (le reste est repris plus tard). */
-    async finish(metaUpdate = {}) {
+    async finish(metaUpdate = {}, extra = {}) {
       if (this.openInt) this.endInt();
       this.intended = "stopped"; this.acc = this.elapsed();
       clearInterval(this.watchdog);
@@ -338,7 +338,8 @@ const GRec = (() => {
       await this.saving;
       this.teardown();
       this.setState("stopped");
-      const payload = { meta: { ...this.meta, ...Object.fromEntries(Object.entries(metaUpdate).filter(([, v]) => v)) }, markers: this.markers, interruptions: this.events };
+      const payload = { meta: { ...this.meta, ...Object.fromEntries(Object.entries(metaUpdate).filter(([, v]) => v)) }, markers: this.markers, interruptions: this.events,
+        attachment_ids: extra.attachment_ids || [] };   // pièces jointes déposées sur le serveur, rattachées à la réunion à la finalisation
       return requestFinish(this.id, payload);
     }
     /** Abandon : supprime tout (local + serveur). */

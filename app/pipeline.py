@@ -5,7 +5,7 @@ import shutil
 import traceback
 from pathlib import Path
 
-from . import config, db, generate, ingest, recordings, transcribe
+from . import attachments, config, db, generate, ingest, recordings, transcribe
 
 
 def _progress(mid: str):
@@ -52,7 +52,8 @@ def process(mid: str, audio_path: Path | None = None, url: str | None = None,
 
         db.update(mid, status="analyzing")
         meeting = db.get(mid)
-        analysis = generate.analyze(transcript, meeting, progress)
+        atts = attachments.for_report(mid)      # pièces jointes incluses : contexte de référence pour la rédaction
+        analysis = generate.analyze(transcript, meeting, progress, **({"attachments": atts} if atts else {}))
         db.update(mid, analysis=analysis, status="done", progress="Terminé", error=None,
                   title=meeting.get("title") or analysis["titre"])
         success = True

@@ -33,6 +33,22 @@ CREATE TABLE IF NOT EXISTS meetings (
 );
 """
 
+CREATE_ATTACHMENTS = """
+CREATE TABLE IF NOT EXISTS attachments (
+    id TEXT PRIMARY KEY,
+    meeting_id TEXT,              -- NULL = déposée mais pas encore rattachée à une réunion (zone d'attente)
+    name TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    label TEXT,
+    size INTEGER,
+    created_at TEXT NOT NULL,
+    included INTEGER NOT NULL DEFAULT 1,
+    snippet TEXT,
+    extract TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_att_meeting ON attachments(meeting_id);
+"""
+
 JSON_FIELDS = {"analysis"}
 
 
@@ -45,6 +61,7 @@ def _conn() -> sqlite3.Connection:
 def init() -> None:
     with _lock, _conn() as c:
         c.executescript(SCHEMA)
+        c.executescript(CREATE_ATTACHMENTS)
 
 
 def _row(r: sqlite3.Row | None) -> dict[str, Any] | None:
@@ -98,3 +115,74 @@ def list_all() -> list[dict[str, Any]]:
 def delete(mid: str) -> None:
     with _lock, _conn() as c:
         c.execute("DELETE FROM meetings WHERE id=?", (mid,))
+
+
+# ------------------------------------------------------------------ pièces jointes
+def _att(r: sqlite3.Row | None) -> dict[str, Any] | None:
+    if r is None:
+        return None
+    d = dict(r)
+    d["extract"] = json.loads(d["extract"]) if d.get("extract") else {}
+    d["included"] = bool(d["included"])
+    return d
+
+
+def att_create(**fields: Any) -> dict[str, Any]:
+    aid = uuid.uuid4().hex[:12]
+    data = {"id": aid, "created_at": datetime.now().isoformat(timespec="seconds"), **fields}
+    if "extract" in data:
+        data["extract"] = json.dumps(data["extract"], ensure_ascii=False)
+    with _lock, _conn() as c:
+        c.execute(f"INSERT INTO attachments ({', '.join(data)}) VALUES ({', '.join('?' for _ in data)})", list(data.values()))
+    return att_get(aid)  # type: ignore[return-value]
+
+
+def att_get(aid: str) -> dict[str, Any] | None:
+    with _lock, _conn() as c:
+        return _att(c.execute("SELECT * FROM attachments WHERE id=?", (aid,)).fetchone())
+
+
+def att_list(meeting_id: str) -> list[dict[str, Any]]:
+    with _lock, _conn() as c:
+        rows = c.execute("SELECT * FROM attachments WHERE meeting_id=? ORDER BY created_at, rowid", (meeting_id,)).fetchall()
+    return [_att(r) for r in rows]  # type: ignore[misc]
+
+
+def att_count(meeting_id: str | None) -> int:
+    with _lock, _conn() as c:
+        if meeting_id is None:
+            return c.execute("SELECT COUNT(*) FROM attachments WHERE meeting_id IS NULL").fetchone()[0]
+        return c.execute("SELECT COUNT(*) FROM attachments WHERE meeting_id=?", (meeting_id,)).fetchone()[0]
+
+
+def att_update(aid: str, **fields: Any) -> None:
+    if "included" in fields:
+        fields["included"] = 1 if fields["included"] else 0
+    if "extract" in fields:
+        fields["extract"] = json.dumps(fields["extract"], ensure_ascii=False)
+    sets = ", ".join(f"{k}=?" for k in fields)
+    with _lock, _conn() as c:
+        c.execute(f"UPDATE attachments SET {sets} WHERE id=?", [*fields.values(), aid])
+
+
+def att_delete(aid: str) -> None:
+    with _lock, _conn() as c:
+        c.execute("DELETE FROM attachments WHERE id=?", (aid,))
+
+
+def att_link(ids: list[str], meeting_id: str) -> list[str]:
+    """Rattache à la réunion les pièces déposées en attente. Retourne celles réellement rattachées (ids inconnus/déjà pris ignorés)."""
+    linked = []
+    with _lock, _conn() as c:
+        for aid in ids:
+            cur = c.execute("UPDATE attachments SET meeting_id=? WHERE id=? AND meeting_id IS NULL", (meeting_id, aid))
+            if cur.rowcount:
+                linked.append(aid)
+    return linked
+
+
+def att_stale_staging(hours: int = 24) -> list[str]:
+    """Pièces déposées mais jamais rattachées depuis plus de `hours` heures (à purger)."""
+    limit = datetime.fromtimestamp(datetime.now().timestamp() - hours * 3600).isoformat(timespec="seconds")
+    with _lock, _conn() as c:
+        return [r[0] for r in c.execute("SELECT id FROM attachments WHERE meeting_id IS NULL AND created_at < ?", (limit,)).fetchall()]

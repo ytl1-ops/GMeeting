@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
@@ -18,7 +18,7 @@ import shutil
 
 from fastapi import Request
 
-from . import branding, config, db, exporters, generate, ingest, pipeline, recordings, slides, transcribe
+from . import annexes, attachments, branding, config, db, exporters, generate, ingest, pipeline, recordings, slides, transcribe
 
 STATIC = Path(__file__).parent / "static"
 basic = HTTPBasic(auto_error=False)
@@ -53,9 +53,10 @@ def _create(title, meeting_date, location, participants, context, language, sour
 @app.post("/api/meetings/audio")
 async def from_audio(bg: BackgroundTasks, file: UploadFile = File(...), title: str = Form(""), meeting_date: str = Form(""),
                      location: str = Form(""), participants: str = Form(""), context: str = Form(""),
-                     language: str = Form(""), source_type: str = Form("upload")):
+                     language: str = Form(""), source_type: str = Form("upload"), attachment_ids: str = Form("")):
     """Enregistrement navigateur ou fichier audio/vidéo importé."""
     m = _create(title, meeting_date, location, participants, context, language, source_type)
+    attachments.link([i for i in attachment_ids.split(",") if i], m["id"])
     dest_dir = config.AUDIO_DIR / m["id"]
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / ("upload" + (Path(file.filename or "").suffix or ".webm"))
@@ -81,6 +82,7 @@ class UrlIn(BaseModel):
     context: str = ""
     language: str = ""
     prefer_subtitles: bool = True
+    attachment_ids: list[str] = []
 
 
 @app.post("/api/meetings/url")
@@ -90,6 +92,7 @@ def from_url(body: UrlIn, bg: BackgroundTasks):
         raise HTTPException(422, "Le lien doit commencer par http:// ou https://")
     m = _create(body.title, body.meeting_date, body.location, body.participants, body.context, body.language,
                 "url", body.url.strip())
+    attachments.link(body.attachment_ids, m["id"])
     db.update(m["id"], status="queued", progress="En file d'attente")
     bg.add_task(pipeline.process, m["id"], url=body.url.strip(), prefer_subtitles=body.prefer_subtitles)
     return {"id": m["id"]}
@@ -103,6 +106,7 @@ class TextIn(BaseModel):
     participants: str = ""
     context: str = ""
     language: str = ""
+    attachment_ids: list[str] = []
 
 
 @app.post("/api/meetings/text")
@@ -111,6 +115,7 @@ def from_text(body: TextIn, bg: BackgroundTasks):
     if not body.text.strip():
         raise HTTPException(422, "Texte vide")
     m = _create(body.title, body.meeting_date, body.location, body.participants, body.context, body.language, "text")
+    attachments.link(body.attachment_ids, m["id"])
     db.update(m["id"], status="queued", transcript=body.text, progress="En file d'attente")
     bg.add_task(pipeline.process, m["id"], raw_text=body.text)
     return {"id": m["id"]}
@@ -172,6 +177,7 @@ class RecFinish(BaseModel):
     meta: dict[str, str] = {}
     markers: list[float] = []
     interruptions: list[dict] = []
+    attachment_ids: list[str] = []
 
 
 @app.post("/api/recordings/{mid}/finish")
@@ -184,6 +190,7 @@ def rec_finish(mid: str, body: RecFinish, bg: BackgroundTasks):
         raise HTTPException(409, "Aucun audio reçu pour cet enregistrement")
     fields = {k: v.strip() for k, v in body.meta.items()
               if k in {"title", "meeting_date", "location", "participants", "context", "language"} and v.strip()}
+    attachments.link(body.attachment_ids, mid)
     notes = recordings.session_notes(body.markers, body.interruptions)
     if notes and "Moments marqués" not in (m.get("context") or "") and "Interruptions techniques" not in (m.get("context") or ""):
         fields["context"] = ((fields.get("context") or m.get("context") or "") + "\n\n" + notes).strip()
@@ -264,35 +271,123 @@ def delete_meeting(mid: str):
     db.delete(mid)
     shutil.rmtree(config.AUDIO_DIR / mid, ignore_errors=True)
     _archive(mid).unlink(missing_ok=True)
+    attachments.delete_for_meeting(mid)
     return {"ok": True}
 
 
 # ------------------------------------------------------------------ aperçu & exports
 @app.get("/api/meetings/{mid}/preview/{doc_type}")
-def preview(mid: str, doc_type: str):
+def preview(mid: str, doc_type: str, annexes_on: int = Query(1, alias="annexes")):
     """Blocs du document tels qu'ils seront exportés (l'interface les affiche à l'identique)."""
     m = _meeting(mid)
     if not m.get("analysis"):
         raise HTTPException(409, "Analyse non disponible pour cette réunion")
+    atts = attachments.for_report(mid) if annexes_on else []
     if doc_type in exporters.DECKS:      # présentations : liste de diapositives (même modèle que le fichier .pptx)
         visual = exporters.DECKS[doc_type]
-        return {"slides": slides.build_slides(m["analysis"], visual), "visual": visual}
+        return {"slides": slides.build_slides(m["analysis"], visual, atts), "visual": visual}
     if doc_type not in exporters.BUILDERS:
         raise HTTPException(404, "Type de document inconnu")
-    return exporters.BUILDERS[doc_type](m["analysis"])
+    return exporters.BUILDERS[doc_type](m["analysis"]) + annexes.build_blocks(atts, m["analysis"])
 
 
 @app.get("/api/meetings/{mid}/export/{doc_type}.{fmt}")
-def export(mid: str, doc_type: str, fmt: str):
+def export(mid: str, doc_type: str, fmt: str, annexes_on: int = Query(1, alias="annexes")):
     m = _meeting(mid)
     if not m.get("analysis"):
         raise HTTPException(409, "Analyse non disponible pour cette réunion")
     try:
-        data, mime, name = exporters.export(m["analysis"], doc_type, fmt, m.get("transcript"), branding.for_export())
+        atts = attachments.with_image_bytes(attachments.for_report(mid)) if annexes_on else []
+        data, mime, name = exporters.export(m["analysis"], doc_type, fmt, m.get("transcript"), branding.for_export(), atts)
     except ValueError as e:
         raise HTTPException(404, str(e))
     return StreamingResponse(io.BytesIO(data), media_type=mime,
                              headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(name)}"})
+
+
+# ------------------------------------------------------------------ pièces jointes
+def _att(aid: str) -> dict:
+    a = db.att_get(aid) if attachments.valid_id(aid) else None
+    if not a:
+        raise HTTPException(404, "Pièce jointe introuvable")
+    return a
+
+
+@app.post("/api/attachments")
+def upload_attachments(files: list[UploadFile] = File(...), meeting_id: str = Form("")):
+    """Dépose des pièces jointes (e-mails Outlook, Word, Excel, PDF, PowerPoint, texte, images).
+    Sans meeting_id : zone d'attente, rattachée à la réunion à sa création (attachment_ids)."""
+    mid = meeting_id.strip() or None
+    if mid:
+        _meeting(mid)
+    done, errors = [], []
+    for f in files[: config.MAX_ATTACH_PER_MEETING]:
+        try:
+            done.append(attachments.public(attachments.save(f.file, f.filename or "fichier", mid)))
+        except attachments.AttachmentError as e:
+            errors.append(str(e))
+    if not done and errors:
+        raise HTTPException(422, " ".join(errors))
+    return {"attachments": done, "errors": errors}
+
+
+@app.get("/api/meetings/{mid}/attachments")
+def list_attachments(mid: str):
+    _meeting(mid)
+    return [attachments.public(a) for a in db.att_list(mid)]
+
+
+class AttPatch(BaseModel):
+    included: bool | None = None
+    name: str | None = None
+
+
+@app.patch("/api/attachments/{aid}")
+def patch_attachment(aid: str, body: AttPatch):
+    _att(aid)
+    fields = {}
+    if body.included is not None:
+        fields["included"] = body.included
+    if body.name:
+        fields["name"] = attachments.clean_name(body.name)
+    if fields:
+        db.att_update(aid, **fields)
+    return attachments.public(_att(aid))
+
+
+@app.delete("/api/attachments/{aid}")
+def delete_attachment(aid: str):
+    _att(aid)
+    attachments.delete(aid)
+    return {"ok": True}
+
+
+@app.get("/api/attachments/{aid}/content")
+def attachment_content(aid: str):
+    """Contenu extrait (texte, tableaux, en-têtes de mail) pour contrôle avant intégration au rapport."""
+    a = _att(aid)
+    x = a["extract"]
+    return {**attachments.public(a), "text": x.get("text", ""), "tables_data": x.get("tables", [])}
+
+
+@app.get("/api/attachments/{aid}/file")
+def attachment_file(aid: str):
+    """Fichier d'origine, en téléchargement forcé (jamais interprété par le navigateur)."""
+    a = _att(aid)
+    p = attachments.original_path(a)
+    if not p.exists():
+        raise HTTPException(404, "Fichier introuvable")
+    return FileResponse(p, filename=a["name"], content_disposition_type="attachment",
+                        media_type="application/octet-stream", headers={"X-Content-Type-Options": "nosniff"})
+
+
+@app.get("/api/attachments/{aid}/image")
+def attachment_image(aid: str):
+    a = _att(aid)
+    p = attachments.image_path(a)
+    if not a["extract"].get("image") or not p.exists():
+        raise HTTPException(404, "Pas d'image")
+    return FileResponse(p, media_type="image/png", headers={"X-Content-Type-Options": "nosniff"})
 
 
 # ------------------------------------------------------------------ gabarit (logo, en-tête)

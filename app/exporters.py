@@ -166,13 +166,13 @@ def _footer_text(a: dict, doc_type: str) -> str:
 
 
 # ------------------------------------------------------------------ PDF
-def render_pdf(blocks: list[Block], footer: str, brand: dict) -> bytes:
+def render_pdf(blocks: list[Block], footer: str, brand: dict, assets: dict[str, bytes] | None = None) -> bytes:
     from reportlab.lib import colors
     from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import cm
-    from reportlab.platypus import (KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle)
+    from reportlab.platypus import (Image as RLImage, KeepTogether, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle)
 
     navy = colors.HexColor("#" + brand["color"])
     ss = getSampleStyleSheet()
@@ -221,6 +221,16 @@ def render_pdf(blocks: list[Block], footer: str, brand: dict) -> bytes:
                 ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#B8C2CF")),
                 ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4)]))
             story += [tb, Spacer(1, 6)]
+        elif t == "pagebreak":
+            story.append(PageBreak())
+        elif t == "image":
+            data = (assets or {}).get(blk["id"])
+            if data:
+                iw, ih = blk.get("size") or (800, 600)
+                scale = min(width / iw, 11 * cm / ih, 1.5)          # tient dans la page, sans trop agrandir les petites images
+                story.append(RLImage(io.BytesIO(data), width=iw * scale, height=ih * scale))
+                story.append(para(blk.get("caption", ""), cell))
+                story.append(Spacer(1, 6))
         elif t == "signatures":
             cells = [[para(l, cell) for l in blk["labels"]], ["", ""]]
             tb = Table(cells, colWidths=[width / 2] * 2, rowHeights=[16, 2.2 * cm])
@@ -267,7 +277,7 @@ def render_pdf(blocks: list[Block], footer: str, brand: dict) -> bytes:
 
 
 # ------------------------------------------------------------------ Word
-def render_docx(blocks: list[Block], footer: str, brand: dict) -> bytes:
+def render_docx(blocks: list[Block], footer: str, brand: dict, assets: dict[str, bytes] | None = None) -> bytes:
     from docx import Document
     from docx.enum.table import WD_TABLE_ALIGNMENT
     from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -373,6 +383,15 @@ def render_docx(blocks: list[Block], footer: str, brand: dict) -> bytes:
             el = OxmlElement("w:tblHeader"); el.set(qn("w:val"), "true")
             tb.rows[0]._tr.get_or_add_trPr().append(el)
             doc.add_paragraph()
+        elif t == "pagebreak":
+            doc.add_page_break()
+        elif t == "image":
+            data = (assets or {}).get(blk["id"])
+            if data:
+                iw, ih = blk.get("size") or (800, 600)
+                width_cm = min(16.0, 14.0 * iw / ih) if ih else 16.0     # largeur max 16 cm, hauteur max ≈ 14 cm
+                doc.add_picture(io.BytesIO(data), width=Cm(width_cm))
+                cp = doc.add_paragraph(); r = cp.add_run(blk.get("caption", "")); r.italic = True; r.font.size = Pt(9)
         elif t == "signatures":
             doc.add_paragraph()
             tb = doc.add_table(rows=2, cols=2); tb.style = "Table Grid"
@@ -384,7 +403,8 @@ def render_docx(blocks: list[Block], footer: str, brand: dict) -> bytes:
 
 
 # ------------------------------------------------------------------ Excel
-def render_xlsx(blocks: list[Block], title: str, transcript: str | None = None, brand: dict | None = None) -> bytes:
+def render_xlsx(blocks: list[Block], title: str, transcript: str | None = None, brand: dict | None = None,
+                assets: dict[str, bytes] | None = None) -> bytes:
     brand = brand or DEFAULT_BRAND
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Font, PatternFill, Border, Side
@@ -463,7 +483,16 @@ def render_xlsx(blocks: list[Block], title: str, transcript: str | None = None, 
             s.freeze_panes = "A2"
             s.auto_filter.ref = f"A1:{get_column_letter(len(blk['headers']))}{len(blk['rows']) + 1}"
             ws.cell(row, 1, f"→ voir l'onglet « {name} » ({len(blk['rows'])} ligne(s))").font = Font(italic=True, color="666666"); row += 1
-        elif t == "signatures":
+        elif t == "image":
+            data = (assets or {}).get(blk["id"])
+            if data:
+                from openpyxl.drawing.image import Image as XLImage
+                iw, ih = blk.get("size") or (800, 600)
+                scale = min(1.0, 700 / iw, 420 / ih)
+                img = XLImage(io.BytesIO(data)); img.width, img.height = iw * scale, ih * scale
+                ws.add_image(img, f"A{row}")
+                row += int(img.height / 20) + 2
+        elif t in ("signatures", "pagebreak"):
             pass
     if transcript:
         s = wb.create_sheet("Transcription")
@@ -484,7 +513,7 @@ def render_xlsx(blocks: list[Block], title: str, transcript: str | None = None, 
 
 # ------------------------------------------------------------------ API publique
 def export(analysis: dict, doc_type: str, fmt: str, transcript: str | None = None,
-           brand: dict | None = None) -> tuple[bytes, str, str]:
+           brand: dict | None = None, attachments: list[dict] | None = None) -> tuple[bytes, str, str]:
     """Retourne (contenu, type MIME, nom de fichier)."""
     if doc_type not in BUILDERS and doc_type not in DECKS:
         raise ValueError(f"Type de document inconnu : {doc_type}")
@@ -497,17 +526,23 @@ def export(analysis: dict, doc_type: str, fmt: str, transcript: str | None = Non
     if doc_type in DECKS:
         from . import pptx_export, slides
         visual = DECKS[doc_type]
-        data = pptx_export.render(slides.build_slides(analysis, visual), brand, visual, analysis["titre"])
+        assets = {a["id"]: a["image_bytes"] for a in (attachments or []) if a.get("image_bytes")}
+        data = pptx_export.render(slides.build_slides(analysis, visual, attachments or []), brand, visual, analysis["titre"], assets)
         ascii_title = unicodedata.normalize("NFKD", analysis["titre"]).encode("ascii", "ignore").decode()
         slug = re.sub(r"[^A-Za-z0-9]+", "_", ascii_title).strip("_")[:50] or "reunion"
         return data, FORMATS["pptx"], f"{'PRESENTATION_ILLUSTREE' if visual else 'PRESENTATION'}_{slug}.pptx"
-    blocks = BUILDERS[doc_type](analysis)
+    from . import annexes
+    atts = attachments or []
+    # Excel : tableaux d'annexes complets (un onglet chacun) ; PDF/Word : extraits lisibles
+    blocks = BUILDERS[doc_type](analysis) + annexes.build_blocks(atts, analysis, rows_limit=200 if fmt == "xlsx" else 25,
+                                                                  cols_limit=20 if fmt == "xlsx" else 8)
+    assets = {a["id"]: a["image_bytes"] for a in atts if a.get("image_bytes")}
     if fmt == "pdf":
-        data = render_pdf(blocks, footer, brand)
+        data = render_pdf(blocks, footer, brand, assets)
     elif fmt == "docx":
-        data = render_docx(blocks, footer, brand)
+        data = render_docx(blocks, footer, brand, assets)
     else:
-        data = render_xlsx(blocks, footer, transcript, brand)
+        data = render_xlsx(blocks, footer, transcript, brand, assets)
     ascii_title = unicodedata.normalize("NFKD", analysis["titre"]).encode("ascii", "ignore").decode()
     slug = re.sub(r"[^A-Za-z0-9]+", "_", ascii_title).strip("_")[:50] or "reunion"
     return data, FORMATS[fmt], f"{doc_type.upper()}_{slug}.{fmt}"

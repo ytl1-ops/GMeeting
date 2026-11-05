@@ -11,7 +11,7 @@ const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) fails++
   for (const label of ['Présentation', 'Présentation illustrée']) {
     await p.click(`.tab:text-is("${label}")`); await p.waitForSelector('.slides');
     ok(await p.$$eval('.sl', e => e.length) >= 8, `${label} : aperçu des diapositives affiché`);
-    ok(!(await p.$eval('.slides', e => /\bnull\b|undefined/.test(e.textContent))), `${label} : aucun « null » / « undefined » dans l'aperçu`);
+    ok(!(await p.$eval('.slides', e => /null|undefined/i.test(e.textContent))), `${label} : aucun « null » / « undefined » dans l'aperçu`);
     ok((await p.$$eval('.exports a', e => e.map(x => x.textContent.trim()))).join() === '⬇ PowerPoint', `${label} : export PowerPoint seul`);
     const [d] = await Promise.all([p.waitForEvent('download'), p.click('.exports a:has-text("PowerPoint")')]);
     const f = path.join(os.tmpdir(), d.suggestedFilename()); await d.saveAs(f);

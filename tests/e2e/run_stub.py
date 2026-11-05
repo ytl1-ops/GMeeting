@@ -10,7 +10,7 @@ os.environ.setdefault("DATA_DIR", tempfile.mkdtemp(prefix="gmeeting_e2e_"))
 from app import generate, transcribe  # noqa: E402
 from tests.sample import RAW, TRANSCRIPT  # noqa: E402
 
-def fake_analyze(t, meta, progress=lambda m: None):
+def fake_analyze(t, meta, progress=lambda m: None, attachments=None):
     progress("Rédaction (simulée)…"); time.sleep(1); return generate.normalize(RAW, meta)
 
 generate.analyze = fake_analyze

@@ -67,6 +67,22 @@ def icon_or_guess(icon: str | None, text: str, default: str = "objectif") -> str
     return icon if icon in ICONS else guess_icon(text, default)
 
 
+def flow(text: str, limit: int) -> str:
+    """Texte multi-paragraphes (courriel, document) tronqué proprement, paragraphes séparés par une ligne vide."""
+    paras = [re.sub(r"[ \t]+", " ", p).strip() for p in re.split(r"\n\s*\n|\n", text or "") if p.strip()]
+    out, used = [], 0
+    for p in paras:
+        if used + len(p) > limit:
+            room = limit - used
+            if room > 60:
+                out.append(clip(p, room))
+            elif out:
+                out[-1] += " […]"
+            break
+        out.append(p); used += len(p) + 2
+    return "\n\n".join(out)
+
+
 def _chunks(items: list, n: int) -> list[list]:
     return [items[i:i + n] for i in range(0, len(items), n)] or [[]]
 
@@ -98,11 +114,60 @@ def _suffix(title: str, i: int, n: int) -> str:
 
 
 # ------------------------------------------------------------------ construction
-def build_slides(a: dict, visual: bool) -> list[Slide]:
+def build_slides(a: dict, visual: bool, attachments: list[dict] | None = None) -> list[Slide]:
     out: list[Slide] = []
     out.append(_cover(a, visual))
     (_visual if visual else _standard)(a, out)
+    if attachments:
+        _annex_slides(a, attachments, visual, out)
     return out
+
+
+KIND_ICON = {"email": "communication", "word": "juridique", "excel": "qualite", "pdf": "juridique", "powerpoint": "objectif",
+             "texte": "juridique", "image": "idee", "autre": "juridique"}
+MAX_ANNEX_DETAIL_SLIDES = 12
+
+
+def _annex_slides(a: dict, atts: list[dict], visual: bool, out: list[Slide]) -> None:
+    """Pièces jointes : une liste, puis le détail utile (courriel, extrait, tableau, image) dans la limite de 12 diapositives."""
+    from . import annexes
+    summ = annexes.summaries(atts, a)
+    mine = annexes.model_summaries(atts, a)          # résumé du modèle seulement (jamais l'aperçu, qui doublerait le texte)
+    if visual:
+        items = [{"title": clip(x["name"], 70), "detail": clip(summ[x["id"]], 130), "icon": KIND_ICON.get(x["kind"], "juridique"), "chip": x["label"]}
+                 for x in atts]
+        for i, page in enumerate(_chunks(items, CARDS_PER_SLIDE)):
+            out.append({"layout": "cards", "title": _suffix("Pièces jointes", i, len(_chunks(items, CARDS_PER_SLIDE))), "icon": "juridique", "tone": "primary", "items": page})
+    else:
+        lines = [f"{i}. {x['name']} ({x['label']}) — {clip(summ[x['id']], 110)}" for i, x in enumerate(atts, 1)]
+        pages = _bullet_pages(lines)
+        for i, page in enumerate(pages):
+            out.append({"layout": "bullets", "title": _suffix("Pièces jointes", i, len(pages)), "paragraph": "", "items": page})
+    n = 0
+    for i, x in enumerate(atts, 1):
+        if n >= MAX_ANNEX_DETAIL_SLIDES:
+            break
+        e, meta = x["extract"], x["extract"].get("meta", {})
+        ic = KIND_ICON.get(x["kind"], "juridique")
+        if x["kind"] == "image" and e.get("image"):
+            out.append({"layout": "image", "title": clip(f"Annexe {i} — {x['name']}", 80), "icon": ic, "id": x["id"], "caption": x["name"], "size": e.get("image_size")})
+        elif x["kind"] == "excel" and e.get("tables"):
+            t = e["tables"][0]
+            cols = min(6, len(t["headers"]))
+            title = f"Annexe {i} — {x['name']}" + (f" · {t['name']}" if len(e["tables"]) > 1 else "")
+            out.append({"layout": "table", "title": clip(title, 80), "icon": ic, "headers": [clip(h, 30) for h in t["headers"][:cols]],
+                        "rows": [[clip(c, 60) for c in r[:cols]] for r in t["rows"][:8]], "widths": [1 / cols] * cols, "charts": None})
+        elif x["kind"] == "email":
+            head = " · ".join(f"{k} : {meta[k]}" for k in ("De", "À", "Date") if meta.get(k))
+            out.append({"layout": "bullets", "title": clip(f"Annexe {i} — {meta.get('Objet') or x['name']}", 80), "icon": ic,
+                        "paragraph": head + "\n\n" + flow(e.get("text", ""), 850), "items": []})
+        elif e.get("text"):
+            lead = mine.get(x["id"])
+            out.append({"layout": "bullets", "title": clip(f"Annexe {i} — {x['name']}", 80), "icon": ic,
+                        "paragraph": (lead + "\n\n" if lead else "") + flow(e["text"], 800 if lead else 950), "items": []})
+        else:
+            continue
+        n += 1
 
 
 def _cover(a: dict, visual: bool) -> Slide:

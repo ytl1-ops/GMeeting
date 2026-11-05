@@ -426,8 +426,10 @@ class Deck:
         y, hh = 1.55, 5.25
         paras = []
         if d.get("paragraph"):
-            pt = fit_pt([d["paragraph"]], RM - LM, hh * (0.55 if d["items"] else 1.0), 30, 14, gap_pt=0)
-            text(sh, LM, y, RM - LM, hh * (0.55 if d["items"] else 1.0), d["paragraph"], size=pt, color=c["ink"])
+            ph = hh * (0.55 if d["items"] else 1.0)
+            paras = [p for p in d["paragraph"].split("\n\n") if p.strip()] or [d["paragraph"]]    # paragraphes distincts (courriels, extraits)
+            pt = fit_pt(paras, RM - LM, ph, 30 if len(paras) == 1 else 22, 12, gap_pt=10)
+            text(sh, LM, y, RM - LM, ph, paras, size=pt, color=c["ink"], gap_pt=10)
             if d["items"]:
                 y += hh * 0.55 + 0.1; hh = hh * 0.45 - 0.1
             else:
@@ -521,13 +523,17 @@ class Deck:
                 if it.get("detail"):
                     text(sh, tx, y + 0.38 + th + 0.1, tw, dh, it["detail"], size=fit_pt([it["detail"]], tw, dh, d_cap, 11), color=c["mute"])
             else:
-                icon(sh, it["icon"], x + 0.3, y + 0.35, 0.75, c[col], "FFFFFF")
-                tw = cw - 0.6
-                avail = ch - 1.25 - chip_area
-                th, dh = (avail * 0.55, avail * 0.45 - 0.08) if it.get("detail") else (avail, 0)
-                text(sh, x + 0.3, y + 1.22, tw, th, it["title"], size=fit_pt([it["title"]], tw, th, t_cap, 12), bold=True, color=c["ink"])
+                # 3 colonnes : pictogramme à gauche du titre (plus compact), résumé dessous, étiquette en bas : rien ne se chevauche
+                icon(sh, it["icon"], x + 0.25, y + 0.32, 0.66, c[col], "FFFFFF")
+                tx, tw = x + 1.1, cw - 1.1 - 0.25
                 if it.get("detail"):
-                    text(sh, x + 0.3, y + 1.22 + th + 0.08, tw, dh, it["detail"], size=fit_pt([it["detail"]], tw, dh, d_cap, 10), color=c["mute"])
+                    th = 0.85
+                    text(sh, tx, y + 0.28, tw, th, it["title"], size=fit_pt([it["title"]], tw, th, 18, 11), bold=True, color=c["ink"])
+                    dh = ch - 1.25 - chip_area
+                    text(sh, x + 0.25, y + 1.25, cw - 0.5, dh, it["detail"], size=fit_pt([it["detail"]], cw - 0.5, dh, 15, 10), color=c["mute"])
+                else:
+                    th = ch - 0.28 - chip_area
+                    text(sh, tx, y + 0.28, tw, th, it["title"], size=fit_pt([it["title"]], tw, th, t_cap, 11), bold=True, color=c["ink"])
             if has_chip:
                 cwid = min(cw - 0.6, 0.3 + len(it["chip"]) * 0.115)
                 cy = y + ch - 0.34 - 0.22
@@ -679,13 +685,29 @@ class Deck:
             text(sh, cx - colw / 2 + 0.18, ly + 2.6, colw - 0.36, 0.55, st["who"], size=fit_pt([st["who"]], colw - 0.36, 0.55, 15, 10), color=c["mute"], anchor=MSO_ANCHOR.BOTTOM)
         self.chrome(s)
 
+    def image(self, d: dict):
+        """Pièce jointe image : insérée à l'échelle, centrée dans la zone de contenu, légende dessous."""
+        s = self.new(self.c["bg"] if self.visual else None); sh = s.shapes
+        self.title(s, d["title"], d.get("icon"))
+        data = self.assets.get(d["id"])
+        if data:
+            iw, ih = d.get("size") or (800, 600)
+            bw, bh = RM - LM, 4.85
+            k = min(bw / iw, bh / ih)
+            w, h = iw * k, ih * k
+            pic = sh.add_picture(io.BytesIO(data), Inches(LM + (bw - w) / 2), Inches(1.6 + (bh - h) / 2), Inches(w), Inches(h))
+            pic._element.nvPicPr.cNvPr.set("descr", d.get("caption", "Pièce jointe"))
+        text(sh, LM, 6.55, RM - LM, 0.3, d.get("caption", ""), size=12, color=self.c["mute"], align=PP_ALIGN.CENTER)
+        self.chrome(s)
+
     def save(self) -> bytes:
         buf = io.BytesIO(); self.prs.save(buf)
         return buf.getvalue()
 
 
-def render(slide_list: list[dict], brand: dict[str, Any], visual: bool, title: str) -> bytes:
+def render(slide_list: list[dict], brand: dict[str, Any], visual: bool, title: str, assets: dict[str, bytes] | None = None) -> bytes:
     deck = Deck(brand, visual, title, len(slide_list))
+    deck.assets = assets or {}
     for sl in slide_list:
         getattr(deck, sl["layout"])(sl)
     return deck.save()
