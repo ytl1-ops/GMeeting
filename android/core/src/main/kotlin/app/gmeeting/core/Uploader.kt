@@ -40,7 +40,12 @@ class Uploader(private val store: SessionStore, private val api: GMeetingApi) {
         return retry ?: if (anything) DrainResult.Done(finished) else DrainResult.Idle
     }
 
-    fun drain(id: String): DrainResult {
+    /** Un seul envoi à la fois dans toute l'application (service d'enregistrement ET travail en arrière-plan peuvent se déclencher ensemble). */
+    fun drain(id: String): DrainResult = synchronized(LOCK) {
+        try { drainLocked(id) } catch (e: IllegalStateException) { DrainResult.Idle }     // la session a été supprimée entre-temps (annulation)
+    }
+
+    private fun drainLocked(id: String): DrainResult {
         var s = store.load(id) ?: return DrainResult.Idle
         try {
             if (!s.registered) {
@@ -76,6 +81,8 @@ class Uploader(private val store: SessionStore, private val api: GMeetingApi) {
         }
     }
 }
+
+private val LOCK = Any()
 
 /** Délai avant la prochaine tentative : 2 s, 4 s, 8 s… plafonné à 60 s (identique à l'interface web). */
 object Backoff {

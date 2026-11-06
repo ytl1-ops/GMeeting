@@ -1,0 +1,49 @@
+name: android
+
+on:
+  push:
+    paths: ["android/**", "app/**", "tests/e2e/run_stub.py", ".github/workflows/android.yml"]
+  pull_request:
+    paths: ["android/**", ".github/workflows/android.yml"]
+
+jobs:
+  core:
+    name: noyau Kotlin + serveur réel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: pip install -r requirements.txt
+      - name: Serveur GMeeting de test
+        run: |
+          PORT=8795 GMEETING_PASSWORD=secret nohup python tests/e2e/run_stub.py > /tmp/stub.log 2>&1 &
+          for i in $(seq 1 30); do curl -fs http://127.0.0.1:8795/healthz && break; sleep 1; done
+      - name: Tests (unitaires + intégration contre le vrai serveur)
+        working-directory: android
+        env: { GMEETING_URL: "http://127.0.0.1:8795", GMEETING_PASSWORD: secret }
+        run: ./gradlew :core:test --no-daemon --console=plain
+
+  app:
+    name: application Android (compilation, lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - name: Compilation
+        working-directory: android
+        run: ./gradlew :core:test :app:assembleDebug :app:lintDebug :app:bundleRelease --no-daemon --console=plain
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-build
+          path: |
+            android/app/build/outputs/apk/debug/*.apk
+            android/app/build/outputs/bundle/release/*.aab
+            android/app/build/reports/lint-results-debug.html
