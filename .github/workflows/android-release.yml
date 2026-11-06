@@ -1,0 +1,42 @@
+name: android-release
+
+# Construit le bundle signé (.aab) à envoyer sur Google Play. Déclenchement MANUEL uniquement (onglet Actions → Run workflow).
+# Secrets requis (Settings → Secrets and variables → Actions) :
+#   ANDROID_KEYSTORE_B64   le fichier .jks encodé en base64  (base64 -w0 upload.jks)
+#   ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+on:
+  workflow_dispatch:
+    inputs:
+      version_code: { description: "versionCode (entier, à incrémenter à chaque envoi)", required: true, default: "1" }
+      version_name: { description: "versionName affichée", required: true, default: "1.0.0" }
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - name: Clé de signature
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KS_PW: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PW: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          [ -n "$KS_B64" ] && [ -n "$KS_PW" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PW" ] || { echo "::error::Secrets de signature manquants (voir l'en-tête du workflow)."; exit 1; }
+          echo "$KS_B64" | base64 -d > android/upload.jks
+          { echo "storeFile=upload.jks"; echo "storePassword=$KS_PW"; echo "keyAlias=$KEY_ALIAS"; echo "keyPassword=$KEY_PW"; } > android/keystore.properties
+      - name: SDK Android, plateforme 35
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
+      - name: Bundle de production
+        working-directory: android
+        run: ./gradlew :core:test :app:bundleRelease -PversionCode=${{ inputs.version_code }} -PversionName=${{ inputs.version_name }} --no-daemon --console=plain
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gmeeting-release-aab
+          path: android/app/build/outputs/bundle/release/*.aab
+          retention-days: 30

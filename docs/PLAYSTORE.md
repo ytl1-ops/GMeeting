@@ -50,8 +50,8 @@ Application Android = **client du serveur de l'utilisateur** (modèle Nextcloud 
 - **Texte long** : problème (réunions mal retranscrites) → solution (une touche, le PV/CR/synthèse arrive) → différenciateurs
   (continue pendant un appel, mode avion, partage depuis Outlook, pièces jointes qui renforcent le rapport, exports) →
   confidentialité (votre serveur) → prérequis honnête (nécessite un serveur GMeeting, guide Docker fourni).
-- **Visuels** : captures d'écran sur téléphone réel (enregistreur, compte rendu, export PowerPoint illustré, partage Outlook), icône 512×512,
-  bannière 1024×500. À produire depuis l'application installée — non fournis ici.
+- **Visuels** : icône 512, bannière 1024×500 et captures fournies dans `docs/store/` (voir `docs/store/FICHE.md`, textes FR/EN prêts à coller) ; remplacer les captures par celles du téléphone après vos essais.
+
 
 ## Ce qui fait vraiment monter une application (hors de ce dépôt)
 Pas de raccourci : une fiche sincère, une première minute réussie (assistant de connexion simple), une note ≥ 4,5 obtenue par de vrais

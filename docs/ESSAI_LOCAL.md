@@ -6,15 +6,12 @@ Deux éléments : **le serveur** (sur votre PC, ou sur votre serveur) et **l'app
 ```bash
 git clone https://github.com/ytl1-ops/GMeeting && cd GMeeting
 git checkout claude/meeting-recording-app-va7j0s
-python -m venv .venv && source .venv/bin/activate        # Windows : .venv\Scripts\activate
-pip install -r requirements.txt                            # ffmpeg doit être installé (winget/brew/apt install ffmpeg)
-cp .env.example .env                                       # renseignez GMEETING_PASSWORD (mot de passe solide), ANTHROPIC_API_KEY
-                                                           # et, pour transcrire, OPENAI_API_KEY (voir README)
-export $(grep -v '^#' .env | xargs)                        # le fichier .env n'est PAS lu automatiquement (Windows : définir chaque variable avec « set »)
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+./deploy/local.sh
 ```
-Trouvez l'adresse IP de votre PC (`ipconfig` / `ip a`, par ex. `192.168.1.20`) et autorisez le port 8000 dans le pare-feu.
-Test depuis le téléphone : ouvrez `http://192.168.1.20:8000` dans son navigateur (mot de passe demandé).
+Le script (Linux/macOS ; sous Windows, utilisez WSL) crée l'environnement, génère un mot de passe fort dans `.env`, affiche l'adresse à saisir dans
+l'application (par ex. `192.168.1.20:8000`) puis lance le serveur. Ouvrez le fichier `.env` pour y mettre vos clés (`ANTHROPIC_API_KEY`,
+`OPENAI_API_KEY`), relancez, et autorisez le port 8000 dans le pare-feu. `ffmpeg` doit être installé.
+Test : ouvrez l'adresse affichée (`http://192.168.1.20:8000`) dans le navigateur du téléphone.
 
 *Pour un usage durable (HTTPS, sauvegardes, démarrage automatique)* : `DEPLOY.md` (Docker + Caddy).
 
