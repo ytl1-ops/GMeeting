@@ -10,6 +10,8 @@ const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) fails++
   await p.click('text=Générer les documents'); await p.waitForSelector('.doc', { timeout: 30000 });
   for (const label of ['Présentation', 'Présentation illustrée']) {
     await p.click(`.tab:text-is("${label}")`); await p.waitForSelector('.slides');
+    const sel = await p.$$eval('.tabs .tab', e => e.map(x => x.getAttribute('aria-selected')));
+    ok(sel.filter(v => v === 'true').length === 1 && sel.every(v => v === 'true' || v === 'false'), `${label} : un seul onglet actif, aria-selected valide (true/false)`);
     ok(await p.$$eval('.sl', e => e.length) >= 8, `${label} : aperçu des diapositives affiché`);
     ok(!(await p.$eval('.slides', e => /null|undefined/i.test(e.textContent))), `${label} : aucun « null » / « undefined » dans l'aperçu`);
     ok((await p.$$eval('.exports a', e => e.map(x => x.textContent.trim()))).join() === '⬇ PowerPoint', `${label} : export PowerPoint seul`);

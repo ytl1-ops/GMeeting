@@ -12,6 +12,7 @@ function el(tag, attrs = {}, ...kids) {
   for (const [k, v] of Object.entries(attrs)) {
     if (k === "class") n.className = v;
     else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+    else if (k.startsWith("aria-")) n.setAttribute(k, String(v));      // ARIA exige "true"/"false", pas un attribut vide
     else if (v === true) n.setAttribute(k, "");
     else if (v !== false && v != null) n.setAttribute(k, v);
   }
@@ -336,7 +337,7 @@ async function viewMeeting(id) {
       body.replaceChildren(el("div", { class: "card progress", role: "status" }, el("div", { class: "spin" }), el("div", {}, el("strong", {}, STATUS[m.status] || m.status), el("br"), m.progress || "")));
       return;
     }
-    const tabs = el("div", { class: "tabs", role: "tablist" });
+    const tabs = el("div", { class: "tabs scroll", role: "tablist" });
     [...Object.entries(DOC_LABELS), ["attachments", "Pièces jointes"], ["transcript", "Transcription"], ["infos", "Informations"]].forEach(([k, l]) =>
       tabs.append(el("button", { class: "tab", role: "tab", "aria-selected": k === tab, onclick: () => { tab = k; sessionStorage.setItem("tab", k); lastKey = ""; render(); } }, l)));
     const content = el("div", { class: "card" });
@@ -345,6 +346,7 @@ async function viewMeeting(id) {
       "Régénérez pour que les rapports en tiennent compte (citations des sources, recoupements, suivi des actions antérieures). ",
       el("div", { class: "row", style: "margin-top:8px" }, el("button", { class: "btn", type: "button", onclick: () => regenerate(id) }, "↻ Régénérer maintenant"))) : null;
     fill(body, stale, tabs, content);
+    tabs.querySelector('[aria-selected="true"]')?.scrollIntoView({ inline: "center", block: "nearest" });   // onglet actif visible sur mobile
     if (DOC_LABELS[tab]) await docView(content, id, tab);
     else if (tab === "attachments") await attView(content, id);
     else if (tab === "transcript") transcriptView(content);

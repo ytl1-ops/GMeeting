@@ -191,7 +191,7 @@ stocké dans `DATA_DIR/branding/`. Sans configuration, le rendu par défaut est 
 ## Tests et intégration continue
 
 ```bash
-pip install -r requirements-dev.txt && pytest          # 122+ tests : exports, audio, enregistrements, pièces jointes, sécurité…
+pip install -r requirements-dev.txt && pytest          # 128 tests : exports, audio, enregistrements, pièces jointes, sécurité…
 # Scénarios navigateur (Chromium, micro simulé) : appel, coupure réseau, rechargement, mode avion, audio, présentations, pièces jointes
 PYTHON=python tests/e2e/run_all.sh                     # nécessite playwright (npm i -g playwright)
 ```

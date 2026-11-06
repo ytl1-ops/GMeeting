@@ -138,3 +138,10 @@ select{text-overflow:ellipsis}
 .doc hr.pb{border:0;border-top:2px dashed var(--line);margin:22px 0}.doc figure{margin:10px 0;text-align:center}.doc figure img{max-width:100%;max-height:420px;border:1px solid var(--line)}.doc figcaption{font-size:12px;color:var(--mute)}
 .sl .sl-img{margin:0;text-align:center}.sl .sl-img img{max-width:100%;max-height:30cqw}.sl .sl-img figcaption{font-size:1.5cqw;color:#5f6b7a}
 .audio-box{margin-bottom:12px;display:grid;gap:4px}
+
+/* onglets d'une réunion : défilement horizontal sur mobile (7 onglets), avec un fondu qui signale la suite */
+@media (max-width:640px){
+  .tabs.scroll{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(to right,#000 88%,transparent);mask-image:linear-gradient(to right,#000 88%,transparent);scroll-snap-type:x proximity}
+  .tabs.scroll::-webkit-scrollbar{display:none}
+  .tabs.scroll .tab{white-space:nowrap;flex:none;scroll-snap-align:start}
+}
