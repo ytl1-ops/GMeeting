@@ -51,7 +51,10 @@ class SetupActivity : Activity() {
     }
 
     private fun connect() {
-        val base = ServerConfig.normalizeUrl(url.text.toString(), allowHttp = BuildConfig.DEBUG)
+        var raw = url.text.toString().trim()
+        // version de test : une adresse du réseau local (192.168.x.x:8000) se saisit sans « http:// »
+        if (BuildConfig.DEBUG && !raw.contains("://") && Regex("^((\\d{1,3}\\.){3}\\d{1,3}|localhost)(:\\d+)?(/.*)?$").matches(raw)) raw = "http://$raw"
+        val base = ServerConfig.normalizeUrl(raw, allowHttp = BuildConfig.DEBUG)
         if (base == null) { say("Adresse invalide. Exemple : reunions.exemple.fr (HTTPS obligatoire)."); return }
         val password = pw.text.toString()
         if (password.isEmpty()) { say("Saisissez le mot de passe du serveur."); return }
