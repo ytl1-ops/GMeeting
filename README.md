@@ -1,8 +1,51 @@
 # GMeeting
 
-Un « Plaud » auto-hébergé : enregistrez une réunion (ou collez un lien vidéo, importez un fichier, un texte),
-et obtenez automatiquement une **transcription**, puis un **procès-verbal**, un **compte rendu** et une
-**note de synthèse**, exportables en **PDF, Word (.docx) et Excel (.xlsx)**.
+Un « Plaud » auto-hébergé pour vos réunions : enregistrez (ou collez un lien vidéo, importez un fichier, un texte) et obtenez une
+**transcription**, un **procès-verbal**, un **compte rendu**, une **note de synthèse** et des **présentations** (sobre ou illustrée),
+exportables en **PDF, Word, Excel et PowerPoint**, enrichis de vos **pièces jointes** (mails Outlook, Word, Excel, PDF…).
+
+**En bref** : enregistrement fiable même après un appel ou en **mode avion** · audio compact (≈ 12 Mo/h) · pièces jointes qui renforcent
+le texte (sources, recoupements, suivi des actions précédentes) · gabarit à vos couleurs · confidentialité maîtrisée (transcription locale
+possible, rétention configurable, protection CSRF, mot de passe).
+
+## Démarrage rapide
+
+**En local**
+
+```bash
+sudo apt install ffmpeg            # ou brew install ffmpeg
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env               # renseigner ANTHROPIC_API_KEY, puis : export $(grep -v '^#' .env | xargs)
+uvicorn app.main:app               # http://localhost:8000
+```
+
+**Avec Docker et HTTPS automatique** (recommandé pour l'usage sur téléphone : le micro n'est autorisé qu'en HTTPS ou sur localhost)
+
+```bash
+cp .env.example .env               # renseigner ANTHROPIC_API_KEY, GMEETING_PASSWORD et DOMAIN (ex. reunions.mon-domaine.fr)
+docker compose up -d               # Caddy obtient et renouvelle le certificat ; l'application n'est jamais exposée directement
+```
+
+> Les fichiers Docker/Caddy ont été validés syntaxiquement (`docker compose config`) mais **l'image n'a pas pu être construite ni lancée**
+> dans l'environnement de développement (pas de démon Docker) : faites un premier essai avant de l'exposer.
+
+Ouvrez l'application **une fois en ligne** (elle se met en cache pour fonctionner ensuite hors-ligne) et installez-la sur l'écran d'accueil.
+
+## Configuration (variables d'environnement, voir `.env.example`)
+
+| Variable | Défaut | Rôle |
+|---|---|---|
+| `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL` | – / `claude-sonnet-5-5` | Rédaction des documents (sortie structurée forcée, consignes anti-hallucination, analyse en deux temps pour les très longues réunions) |
+| `TRANSCRIBE_PROVIDER` | `auto` | `local` (faster-whisper, `pip install faster-whisper`, 100 % hors-ligne), `openai` (`OPENAI_API_KEY`) ou `auto` (local si installé) |
+| `GMEETING_PASSWORD` | vide | Active l'authentification (HTTP Basic, nom d'utilisateur libre) sur **toute** l'application, interface comprise |
+| `KEEP_AUDIO` | `false` | Conserve un fichier Opus compact réécoutable ; sinon l'audio est supprimé après traitement réussi |
+| `RETENTION_DAYS` | `0` | Supprime automatiquement les réunions terminées plus anciennes que N jours (audio, archive et pièces jointes compris) ; `0` = jamais |
+| `AUDIO_KBPS` / `AUDIO_ENHANCE` | `32` / `true` | Débit Opus du fichier de travail (12-128) ; passe-haut + normalisation du volume |
+| `MAX_UPLOAD_MB` | `1024` | Taille maximale d'un fichier audio/vidéo importé |
+| `MAX_ATTACH_MB` / `MAX_ATTACH_PER_MEETING` / `ATTACH_CONTEXT_CHARS` | `25` / `20` / `120000` | Limites des pièces jointes et texte transmis à l'IA |
+| `DATA_DIR` | `./data` | Base SQLite, archives, pièces jointes |
+| `DOMAIN` | `localhost` | (Docker) nom de domaine pour le certificat HTTPS |
 
 ## Fonctionnalités
 
@@ -26,11 +69,20 @@ La transcription est **éditable** (noms propres, acronymes) puis les 3 document
 
 ## Pièces jointes : mails Outlook, Word, Excel, PDF…
 
-Joignez à une réunion les documents qui l'éclairent (convocation reçue par mail, compte rendu précédent, budget…). Ils servent à deux choses :
+Joignez à une réunion les documents qui l'éclairent (convocation reçue par mail, compte rendu précédent, budget…). Ils servent à trois choses :
 
 1. **Mieux rédiger** : leur contenu est transmis à l'IA comme *documents de référence* (jamais comme des propos tenus en réunion, et cités
    comme tels) pour orthographier les noms et acronymes, retrouver l'ordre du jour, les chiffres, le contexte. L'IA écrit aussi un résumé par pièce.
-2. **Les insérer en annexe de tous les rapports** : PV, CR, note de synthèse (PDF, Word, Excel) et présentations (standard et illustrée).
+2. **Renforcer le contenu du rapport** (pas seulement l'accompagner) :
+   * **sources citées** : chaque sujet, décision ou action appuyé sur une pièce l'indique (`[PJ 2]`, « Sources : PJ 2 (budget.xlsx) ») ;
+   * **recoupement réunion / pièces jointes** : tableau des confirmations, **écarts** (ex. « 120 k€ examinés » contre « 95 k€ fixés » dans le CR précédent)
+     et compléments, écarts en tête ; consigne stricte : en cas de doute, rien n'est listé (un faux écart est pire qu'un écart manqué) ;
+   * **suivi des actions antérieures** : en joignant le PV précédent, le nouveau PV indique pour chaque action si elle est soldée, en cours,
+     reportée ou non évoquée ;
+   * **cohérence dans le temps** : numérotation stable (« PJ 3 » reste la même pièce même si une autre est retirée) ; si les pièces changent
+     après la rédaction, un bandeau propose de **régénérer** pour que les rapports en tiennent compte.
+3. **Les insérer en annexe de tous les rapports** : PV, CR, note de synthèse (PDF, Word, Excel) et présentations (standard et illustrée).
+   Sans annexes, la liste des pièces citées reste affichée pour que les références restent compréhensibles.
 
 | Format | Ce qui est extrait et inséré |
 |---|---|
@@ -107,48 +159,47 @@ titres/tableaux, avec aperçu en direct. Appliqué à tous les exports : en-têt
 bandeau en tête de l'onglet principal et pied d'impression en Excel. Le logo est ré-encodé en PNG (≤ 800×300 px) et
 stocké dans `DATA_DIR/branding/`. Sans configuration, le rendu par défaut est inchangé.
 
-## Démarrage
-
-```bash
-sudo apt install ffmpeg            # ou brew install ffmpeg
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env               # renseigner les clés, puis : export $(grep -v '^#' .env | xargs)
-uvicorn app.main:app --reload      # http://localhost:8000
-```
-
-Ou avec Docker : `docker build -t gmeeting . && docker run -p 8000:8000 -v gmeeting:/data --env-file .env gmeeting`
-
-### Moteurs
-
-* **Rédaction** : Claude (`ANTHROPIC_API_KEY`, modèle configurable via `ANTHROPIC_MODEL`). Sortie structurée forcée ;
-  consignes anti-hallucination (aucun nom/chiffre/décision inventé, « À définir » si absent). Réunions très longues :
-  analyse en deux temps automatique.
-* **Transcription** : `TRANSCRIBE_PROVIDER=local` (faster-whisper, `pip install faster-whisper`, **100 % hors-ligne**) ou
-  `openai` (`OPENAI_API_KEY`, découpage automatique en segments de 10 min). `auto` = local si installé.
-
 ## Confidentialité et sécurité
 
-* Audio **supprimé après traitement** (sauf `KEEP_AUDIO=true`). Données dans `DATA_DIR` (SQLite).
-* `GMEETING_PASSWORD` active une authentification HTTP Basic (utilisateur quelconque, mot de passe défini).
-* Pour des réunions sensibles : transcription `local` ; seul le **texte** est alors envoyé à l'API de rédaction.
-  Pour un cloisonnement total, il faut un modèle de rédaction hébergé en interne (non fourni).
-* Le micro exige **HTTPS** (ou `localhost`). En production, placez l'application derrière un reverse-proxy TLS.
+* **Vos données restent chez vous** : base SQLite et fichiers dans `DATA_DIR`. Seuls partent vers l'extérieur : le texte à rédiger (API de rédaction)
+  et, hors transcription locale, l'audio (API de transcription). Avec `TRANSCRIBE_PROVIDER=local`, **seul le texte** quitte la machine ; pour un
+  cloisonnement total, il faudrait un modèle de rédaction hébergé en interne (non fourni).
+* **Rétention** : audio supprimé après traitement réussi (conservé en cas d'échec pour pouvoir relancer), archive optionnelle, purge automatique
+  des vieilles réunions (`RETENTION_DAYS`), suppression manuelle à tout moment.
+* **Authentification** : `GMEETING_PASSWORD` protège toutes les routes (interface comprise, sauf la sonde `/healthz`).
+* **Protection CSRF** : toute requête modifiante venant d'un autre site est refusée (indispensable avec l'authentification Basic, dont les
+  identifiants sont renvoyés automatiquement par le navigateur).
+* **En-têtes** : politique de contenu stricte (aucun script inline ni externe), pas d'intégration en cadre, `nosniff`, micro autorisé uniquement pour
+  l'application, réponses de l'API jamais mises en cache, HSTS derrière HTTPS.
+* **Pièces jointes = données non fiables** : jamais exécutées (macros ignorées), exécutables refusés, archives Office contrôlées (zip-bombes), images
+  ré-encodées, téléchargement forcé ; leur contenu est transmis à l'IA comme donnée, avec consigne de n'exécuter aucune instruction qui s'y trouverait.
+* Le micro exige **HTTPS** (ou `localhost`) : utilisez le déploiement Docker + Caddy ou votre propre reverse-proxy TLS.
 
 ## Limites connues
 
-* Pas de reconnaissance des locuteurs (diarisation) : l'attribution des propos repose sur ce que dit la transcription
-  (noms cités) et sur la liste de participants fournie ; vérifier toujours le PV avant diffusion.
-* Liens privés (Teams, Zoom, Drive protégés) inaccessibles : télécharger puis importer le fichier.
-* La capture de l'audio d'onglet nécessite Chrome/Edge (bureau) ; Firefox/Safari : micro seul.
-* L'enregistrement navigateur est conservé en mémoire jusqu'à l'envoi : prévoir ≤ 3-4 h par session.
+* **Écran verrouillé / arrière-plan** : un site web ne peut pas garantir l'enregistrement dans ces cas (surtout iOS) ; un appel occupe le micro
+  (le **mode avion** l'évite). Un enregistrement garanti en arrière-plan exigerait une application mobile native (non fournie).
+* **Pas de reconnaissance des locuteurs** : l'attribution des propos repose sur les noms cités et la liste des participants ; relire le PV avant diffusion.
+* **Textes générés non évalués en conditions réelles** : les tests utilisent une IA simulée (aucune clé en développement) ; la qualité des résumés,
+  recoupements et suivis doit être jugée sur de vraies réunions. Les recoupements sont volontairement prudents.
+* **Pièces jointes** : insérées en extrait structuré (texte, tableaux, image), pas fusionnées telles quelles ; anciens `.doc/.xls/.ppt` conservés mais non lus ;
+  `.msg` testés sur des fichiers conformes à la spécification, pas sur un large échantillon de courriers réels (sinon, enregistrer en `.eml`).
+* **Liens privés** (Teams, Zoom, Drive protégés) inaccessibles : importer le fichier. **Audio d'onglet** : Chrome/Edge sur ordinateur.
+* **Hors-ligne** : l'audio n'existe que sur l'appareil jusqu'à l'envoi ; certains navigateurs (Safari) purgent les données d'un site peu utilisé.
+* **Gabarit unique** pour toute l'installation. **Docker** non éprouvé en session (voir plus haut).
 
-## Tests
+## Tests et intégration continue
 
 ```bash
-pip install -r requirements-dev.txt && pytest
-# Scénarios navigateur (appel, coupure réseau, rechargement…) – nécessite playwright :
-python tests/e2e/run_stub.py &  node tests/e2e/continuity.js && node tests/e2e/decks.js && node tests/e2e/audio.js
-# pièces jointes (+ lecteur audio) : python tests/e2e/make_attachments.py /tmp/pj ; KEEP_AUDIO=true python tests/e2e/run_stub.py &
-FILES_DIR=/tmp/pj node tests/e2e/attachments.js
+pip install -r requirements-dev.txt && pytest          # 122+ tests : exports, audio, enregistrements, pièces jointes, sécurité…
+# Scénarios navigateur (Chromium, micro simulé) : appel, coupure réseau, rechargement, mode avion, audio, présentations, pièces jointes
+PYTHON=python tests/e2e/run_all.sh                     # nécessite playwright (npm i -g playwright)
 ```
+
+GitHub Actions (`.github/workflows/ci.yml`) exécute les tests Python (3.12 et 3.13) et vérifie la syntaxe de l'interface à chaque PR.
+
+## Architecture
+
+`app/main.py` (API) · `security.py` (auth, CSRF, en-têtes) · `pipeline.py` (acquisition → transcription → rédaction) · `ingest.py`, `recordings.py`,
+`transcribe.py`, `generate.py` · `attachments.py`, `annexes.py` (pièces jointes) · `exporters.py` (PDF/Word/Excel), `slides.py` + `pptx_export.py` (PowerPoint) ·
+`branding.py` (gabarit) · `retention.py` · `static/` (interface JS sans build : `app.js`, `recorder.js`, `sw.js`).

@@ -1,11 +1,10 @@
-import shutil
 import subprocess
 import time
 
 import pytest
 from fastapi.testclient import TestClient
 
-from app import config, generate, ingest, main, recordings, transcribe
+from app import config, generate, main, recordings, transcribe
 from tests.sample import RAW
 
 

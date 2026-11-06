@@ -2,7 +2,6 @@
 import io
 import sqlite3
 import time
-import types
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,7 +11,6 @@ from pypdf import PdfReader
 from docx import Document
 
 from app import annexes, attachments as A, config, db, exporters, generate, main, pipeline, slides
-from tests import attbuild as B
 from tests.sample import ANALYSIS, RAW
 
 ENRICHED = generate.normalize({
@@ -156,7 +154,7 @@ def test_numbers_stay_stable_when_an_attachment_is_removed_then_regenerated(monk
     assert [(a["name"], a["n"]) for a in A.for_report(m)] == [("a.txt", 1), ("c.txt", 3)]       # …c.txt reste « PJ 3 »
     pipeline.process(m, raw_text="[00:00:01] x")                             # régénération : toujours PJ 3
     assert [(a["name"], a["n"]) for a in seen["att"]] == [("a.txt", 1), ("c.txt", 3)] and A.analyzed_numbers(m) == {ids[0]: 1, ids[2]: 3}
-    d = A.save(io.BytesIO(b"nouvelle"), "d.txt", m)["id"]                    # nouvelle pièce : numéro suivant, jamais réutilisé
+    A.save(io.BytesIO(b"nouvelle"), "d.txt", m)                    # nouvelle pièce : numéro suivant, jamais réutilisé
     assert [a["n"] for a in A.for_report(m)] == [1, 3, 4]
     assert "[PJ 3] « c.txt »" in A.context_text(A.for_report(m)) and "[PJ 2]" not in A.context_text(A.for_report(m))
 

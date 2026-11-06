@@ -26,6 +26,9 @@ AUDIO_KBPS = max(12, min(128, int(os.getenv("AUDIO_KBPS", "32"))))
 # Filtre passe-haut + normalisation du volume : rattrape les enregistrements trop faibles (téléphone en poche, salle vaste)
 AUDIO_ENHANCE = os.getenv("AUDIO_ENHANCE", "true").lower() in {"1", "true", "yes", "oui"}
 
+# Suppression automatique des réunions terminées plus anciennes que N jours (0 = jamais)
+RETENTION_DAYS = max(0, int(os.getenv("RETENTION_DAYS", "0")))
+
 MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "1024"))
 # Au-delà de ce volume de texte, l'analyse passe en deux temps (résumés partiels puis synthèse).
 MAX_DIRECT_CHARS = int(os.getenv("MAX_DIRECT_CHARS", "350000"))

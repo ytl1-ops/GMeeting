@@ -14,7 +14,6 @@ from __future__ import annotations
 import csv
 import email
 import email.policy
-import html
 import io
 import re
 import shutil

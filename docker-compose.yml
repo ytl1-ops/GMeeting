@@ -1,0 +1,34 @@
+# Déploiement avec HTTPS automatique (le micro du navigateur n'est autorisé qu'en HTTPS ou sur localhost).
+#   cp .env.example .env        # renseigner ANTHROPIC_API_KEY, GMEETING_PASSWORD, DOMAIN (ex. reunions.mon-domaine.fr)
+#   docker compose up -d
+# Sans DOMAIN : https://localhost (certificat local généré par Caddy). Avec un nom de domaine public pointant vers ce serveur :
+# certificat Let's Encrypt obtenu et renouvelé automatiquement.
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - gmeeting-data:/data
+    expose:
+      - "8000"                 # joignable uniquement par Caddy, jamais publié directement
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  gmeeting-data:
+  caddy-data:
+  caddy-config:

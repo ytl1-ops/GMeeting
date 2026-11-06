@@ -121,6 +121,18 @@ def delete(mid: str) -> None:
         c.execute("DELETE FROM meetings WHERE id=?", (mid,))
 
 
+INTERRUPTED = "Traitement interrompu par un redémarrage du serveur. L'audio est conservé : cliquez sur « Relancer »."
+
+
+def recover_interrupted() -> int:
+    """Au démarrage : un traitement « en cours » n'a plus de processus derrière lui (le serveur vient de démarrer).
+    On le passe en erreur explicite et relançable plutôt que de le laisser tourner indéfiniment à l'écran."""
+    with _lock, _conn() as c:
+        cur = c.execute("UPDATE meetings SET status='error', error=?, progress=NULL WHERE status IN ('queued','processing','analyzing')",
+                        (INTERRUPTED,))
+        return cur.rowcount
+
+
 # ------------------------------------------------------------------ pièces jointes
 def _att(r: sqlite3.Row | None) -> dict[str, Any] | None:
     if r is None:

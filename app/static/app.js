@@ -328,8 +328,7 @@ async function viewMeeting(id) {
     if (m.status === "error") {
       body.replaceChildren(el("div", { class: "card" }, el("div", { class: "err" }, m.error || "Erreur inconnue"),
         el("div", { class: "row", style: "margin-top:12px" },
-          m.transcript ? el("button", { class: "btn", onclick: () => regenerate(id) }, "Relancer la rédaction") : null,
-          !m.transcript && m.source_type === "record" ? el("button", { class: "btn", onclick: () => finishRecording(id) }, "Relancer le traitement (audio conservé)") : null,
+          el("button", { class: "btn", onclick: () => retryMeeting(id) }, m.transcript ? "↻ Relancer la rédaction" : "↻ Relancer le traitement (audio conservé)"),
           el("button", { class: "btn danger", onclick: () => del(id) }, "Supprimer"))));
       return;
     }
@@ -595,6 +594,10 @@ function infosView(host) {
       el("button", { class: "btn danger", onclick: () => del(m.id) }, "Supprimer")));
 }
 
+async function retryMeeting(id) {
+  try { await api(`/meetings/${id}/retry`, { method: "POST" }); route(); }
+  catch (e) { toast(e.message); }
+}
 async function finishRecording(id) {
   try { await api(`/recordings/${id}/finish`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }); route(); }
   catch (e) { toast(e.message); }

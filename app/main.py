@@ -3,14 +3,12 @@ from __future__ import annotations
 
 import io
 import re
-import secrets
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response, StreamingResponse
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -18,22 +16,28 @@ import shutil
 
 from fastapi import Request
 
-from . import annexes, attachments, branding, config, db, exporters, generate, ingest, pipeline, recordings, slides, transcribe
+from . import annexes, attachments, branding, config, db, exporters, generate, ingest, pipeline, recordings, retention, security, slides, transcribe
 
 STATIC = Path(__file__).parent / "static"
-basic = HTTPBasic(auto_error=False)
 
 
-def auth(creds: HTTPBasicCredentials | None = Depends(basic)) -> None:
-    if not config.PASSWORD:
-        return
-    ok = creds and secrets.compare_digest(creds.password.encode(), config.PASSWORD.encode())
-    if not ok:
-        raise HTTPException(401, "Authentification requise", headers={"WWW-Authenticate": 'Basic realm="GMeeting"'})
-
-
-app = FastAPI(title="GMeeting", dependencies=[Depends(auth)])
+# Authentification (GMEETING_PASSWORD), en-têtes de sécurité et protection CSRF : un seul middleware qui couvre toutes les routes
+# (l'interface statique comprise), sauf la sonde /healthz. Voir security.py.
+app = FastAPI(title="GMeeting")
+app.middleware("http")(security.middleware)
 db.init()
+db.recover_interrupted()
+retention.schedule()
+
+
+@app.get("/healthz")
+def healthz():
+    """Sonde pour Docker / supervision : base de données et ffmpeg. Aucune donnée de réunion."""
+    try:
+        db.list_all()
+    except Exception:  # noqa: BLE001
+        raise HTTPException(503, "Base de données indisponible")
+    return {"status": "ok", "ffmpeg": bool(shutil.which("ffmpeg"))}
 
 
 def _meeting(mid: str) -> dict:
@@ -204,7 +208,7 @@ def rec_finish(mid: str, body: RecFinish, bg: BackgroundTasks):
 def get_config():
     return {"transcribe_provider": transcribe.provider(), "has_anthropic": bool(config.ANTHROPIC_API_KEY),
             "has_openai": bool(config.OPENAI_API_KEY), "model": config.ANTHROPIC_MODEL,
-            "keep_audio": config.KEEP_AUDIO, "audio_kbps": config.AUDIO_KBPS, "audio_enhance": config.AUDIO_ENHANCE}
+            "keep_audio": config.KEEP_AUDIO, "retention_days": config.RETENTION_DAYS, "audio_kbps": config.AUDIO_KBPS, "audio_enhance": config.AUDIO_ENHANCE}
 
 
 @app.get("/api/meetings")
@@ -253,6 +257,29 @@ def patch_meeting(mid: str, body: PatchIn):
         fields["analysis"] = generate.normalize(fields["analysis"], m)
     db.update(mid, **fields)
     return db.get(mid)
+
+
+@app.post("/api/meetings/{mid}/retry")
+def retry(mid: str, bg: BackgroundTasks):
+    """Relance un traitement en erreur à partir de ce qui a été conservé : transcription, enregistrement, lien ou fichier importé."""
+    m = _meeting(mid)
+    if m["status"] != "error":
+        raise HTTPException(409, "Seul un traitement en erreur peut être relancé")
+    kw: dict
+    if m.get("transcript"):
+        kw = {"raw_text": m["transcript"]}
+    elif m["source_type"] == "record" and recordings.info(mid)["chunks"]:
+        kw = {"recording": True}
+    elif m.get("source_url"):
+        kw = {"url": m["source_url"]}
+    else:
+        files = sorted((config.AUDIO_DIR / mid).glob("upload*")) if (config.AUDIO_DIR / mid).is_dir() else []
+        if not files:
+            raise HTTPException(409, "Rien à relancer : l'audio d'origine n'est plus disponible")
+        kw = {"audio_path": files[0]}
+    db.update(mid, status="queued", progress="En file d'attente", error=None)
+    bg.add_task(pipeline.process, mid, **kw)
+    return {"id": mid}
 
 
 @app.post("/api/meetings/{mid}/regenerate")

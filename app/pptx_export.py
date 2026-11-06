@@ -8,7 +8,6 @@ Le gabarit (logo, couleur, en-tête, pied de page, confidentialité) est appliqu
 """
 from __future__ import annotations
 
-import colorsys
 import io
 import math
 from typing import Any
@@ -20,10 +19,9 @@ from pptx.enum.chart import XL_CHART_TYPE, XL_LEGEND_POSITION
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.oxml.ns import qn
-from pptx.util import Emu, Inches, Pt
+from pptx.util import Inches, Pt
 from lxml import etree
 
-from . import slides as S
 
 W, H = 13.333, 7.5
 LM, RM = 0.6, 12.733          # marges gauche / droite (pouces)
@@ -261,7 +259,7 @@ def icon(shapes, name: str, x: float, y: float, d: float, badge: str, glyph: str
 
 # ------------------------------------------------------------------ images générées
 def _gradient(w: int, h: int, c1: str, c2: str, diagonal: bool = True):
-    from PIL import Image, ImageChops, ImageOps
+    from PIL import Image, ImageOps
     base = Image.linear_gradient("L")                       # 256x256, noir → blanc de haut en bas
     v = base.resize((w, h))
     if diagonal:
@@ -356,7 +354,7 @@ class Deck:
         if header and self.has_head:
             y = 0.34
             if self.b["logo"]:
-                lw = self.logo(sh, RM - 1.9, y, 0.5, 1.9)
+                self.logo(sh, RM - 1.9, y, 0.5, 1.9)
                 y += 0.58
             if self.b["header_right"]:
                 text(sh, RM - 3.6, y, 3.6, 0.25, self.b["header_right"], size=10, color=c["mute"], align=PP_ALIGN.RIGHT)
@@ -396,7 +394,7 @@ class Deck:
                 text(sh, 1.55, y, 6.5, 0.5, v, size=17, color="FFFFFF", anchor=MSO_ANCHOR.MIDDLE)
                 y += 0.62
             if self.b["confidential"]:
-                r = rect(sh, 0.9, 6.95 - 0.04, 2.3, 0.36, c["red"], radius=0.18)
+                rect(sh, 0.9, 6.95 - 0.04, 2.3, 0.36, c["red"], radius=0.18)
                 text(sh, 0.9, 6.95 - 0.04, 2.3, 0.36, self.b["confidential"], size=11, bold=True, color="FFFFFF", align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
         else:
             rect(sh, 0, 0, 8.6, H, c["p"])
