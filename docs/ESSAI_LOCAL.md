@@ -8,9 +8,9 @@ git clone https://github.com/ytl1-ops/GMeeting && cd GMeeting
 git checkout claude/meeting-recording-app-va7j0s
 python -m venv .venv && source .venv/bin/activate        # Windows : .venv\Scripts\activate
 pip install -r requirements.txt                            # ffmpeg doit être installé (winget/brew/apt install ffmpeg)
-cp .env.example .env                                       # puis renseignez : GMEETING_PASSWORD=un-mot-de-passe-solide
-                                                           # et la clé du fournisseur IA (voir README)
-export GMEETING_PASSWORD=un-mot-de-passe-solide            # (ou set sous Windows) si vous n'utilisez pas .env
+cp .env.example .env                                       # renseignez GMEETING_PASSWORD (mot de passe solide), ANTHROPIC_API_KEY
+                                                           # et, pour transcrire, OPENAI_API_KEY (voir README)
+export $(grep -v '^#' .env | xargs)                        # le fichier .env n'est PAS lu automatiquement (Windows : définir chaque variable avec « set »)
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 Trouvez l'adresse IP de votre PC (`ipconfig` / `ip a`, par ex. `192.168.1.20`) et autorisez le port 8000 dans le pare-feu.
