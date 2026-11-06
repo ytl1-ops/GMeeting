@@ -169,17 +169,16 @@ Essais réalisés avec de **vrais conteneurs** (image construite, Compose et Cad
 | Envoi d'un fichier de **100 Mo** avec un `/tmp` de 64 Mo | Réussi, 0 Mo utilisé en mémoire (fichiers temporaires dans le volume) |
 | `backup.sh` → `restore.sh` sur le même serveur, **sur un serveur neuf**, avec `--force`, sans `--force` | Corrects ; une restauration refusée ou une archive invalide laissent le service **en ligne, données intactes** |
 | `update.sh` : sauvegarde préalable, récupération d'une nouvelle version, refus si fichiers modifiés localement, **échec de construction** | Corrects ; l'ancienne version continue de tourner et le retour arrière est indiqué |
+| **CI GitHub (serveur Ubuntu vierge)** : construction du **vrai Dockerfile** (apt, ffmpeg et encodeur libopus compris), démarrage durci, sonde, non-root, lecture seule, interface protégée, sauvegarde puis restauration vers un volume neuf | Réussi (job `docker`, 36 s de construction) à chaque modification |
 | `install.sh` (préparation de `.env`) : mot de passe fort généré, idempotence, caractères spéciaux, droits 600 | Testés automatiquement (tests de la CI) |
 | Extrait Caddy de restriction par IP (§ 10) et `Caddyfile` du dépôt | Validés par `caddy validate` |
 
 Défauts trouvés **et corrigés** grâce à ces essais : restauration impossible depuis un fichier de l'hôte (droits), service laissé arrêté après une restauration
 refusée, mot de passe non généré (script interrompu en silence), extrait Caddy invalide dans ce guide, et garde de restauration trop stricte sur un serveur neuf.
 
-**Non vérifié** (limites de l'environnement de développement, qui interdit l'accès aux miroirs Debian) :
+**Non vérifié** :
 
-- L'étape `apt-get install ffmpeg` du Dockerfile et donc l'**installation complète `install.sh` avec construction** n'ont pas pu être exécutées là-bas : les essais ont utilisé
-  une variante où seul ffmpeg était fourni autrement. **La CI GitHub construit le vrai Dockerfile** à chaque modification (job `docker`) ; consultez-la, puis faites votre
-  premier essai sur le serveur.
+- L'**installation complète `install.sh` avec construction sur un vrai hôte** : chacune de ses étapes a été vérifiée (préparation de `.env` par les tests, construction du vrai Dockerfile et démarrage durci par la CI, attente de santé et scripts par les essais), mais le script n'a pas été exécuté d'un bloc sur une machine neuve. C'est le premier essai à faire chez vous. (Dans l'environnement de développement, l'accès aux miroirs Debian est interdit : les essais en conteneurs y ont utilisé une variante où seul ffmpeg était fourni autrement ; la CI a confirmé le vrai Dockerfile.)
 - L'émission d'un **vrai certificat Let's Encrypt** (nécessite votre domaine, ports 80/443 joignables) ; seul le certificat local de Caddy a été essayé.
 - Les **sauvegardes planifiées par cron** et la copie chiffrée hors serveur (à tester chez vous, § 6).
 - La charge réelle (nombre d'utilisateurs, très longues réunions) et le dimensionnement du serveur : les chiffres du § 1 sont des ordres de grandeur.
