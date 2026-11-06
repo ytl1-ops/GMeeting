@@ -6,7 +6,7 @@ données d'exemple — à remplacer par des captures du téléphone dès que vou
 
 ## Français (langue par défaut)
 **Titre (≤30)** : GMeeting – Comptes rendus
-**Description courte (≤80)** : Enregistrez vos réunions : PV, CR et synthèse prêts à envoyer, sur votre serveur.
+**Description courte (≤80)** : Enregistrez vos réunions : PV, CR et synthèse prêts à envoyer, chez vous.
 **Description complète** :
 Transformez chaque réunion en documents prêts à envoyer — sans confier vos enregistrements à un cloud tiers.
 
