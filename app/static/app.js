@@ -107,6 +107,12 @@ async function submitForm(path, build, btn) {
 }
 
 async function viewHome() {
+  // Partage Android : les pièces ont déjà été déposées sur le serveur (zone d'attente) ; on les rattache au prochain compte rendu.
+  const pj = location.hash.match(/^#\/\?pj=([0-9a-f,]{1,300})$/);
+  if (pj) {
+    for (const id of pj[1].split(",").filter(Boolean)) if (!staged.some((s) => s.id === id)) staged.push({ id, name: "Pièce partagée", kind: "", label: "Partagée depuis une autre application", size: 0 });
+    history.replaceState(null, "", "#/");
+  }
   const tabsDef = [["rec", "🎙 Enregistrer"], ["url", "🔗 Lien vidéo"], ["file", "📁 Fichier"], ["txt", "📝 Texte"]];
   const panel = el("div");
   const tabs = el("div", { class: "tabs", role: "tablist" });
@@ -245,6 +251,7 @@ function recPanel() {
     }
   };
   // revenir sur l'onglet Enregistrer pendant une session en cours : on rebranche l'interface sur la session active
+  if (!live) live = GRec.adoptNative?.() || null;      // application Android : l'enregistrement natif a continué pendant que la page était fermée
   if (live?.active) {
     live.onState = showState; live.onLevel = (l) => (meter.firstChild.style.width = Math.min(100, l * 140) + "%"); live.onEvent = say;
     ui(true); showState(live.state); const s = live;

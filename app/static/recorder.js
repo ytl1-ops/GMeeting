@@ -359,5 +359,79 @@ const GRec = (() => {
     get active() { return this.intended === "recording" || this.intended === "paused"; }
   }
 
-  return { PROFILES, Session, orphans, discard, requestFinish, completeFinish, resumePending, flush, pendingCount, onProgress: (f) => (listeners.add(f), () => listeners.delete(f)), store };
+  /* ---------------------------------------------------------------- enregistreur NATIF (application Android)
+     Même interface que Session : l'enregistrement est assuré par un service Android (écran verrouillé, appel, mode avion),
+     la page ne fait que le piloter. */
+  const NATIVE = () => { try { return window.GMeetingNative && window.GMeetingNative.isAvailable() ? window.GMeetingNative : null; } catch { return null; } };
+  class NativeSession {
+    constructor({ onState = () => {}, onLevel = () => {}, onEvent = () => {} } = {}) {
+      Object.assign(this, { onState, onLevel, onEvent });
+      this.state = "idle"; this.intended = "idle"; this.markCount = 0; this.sec = 0; this.id = null; this.n = NATIVE();
+    }
+    static supported() { return !!NATIVE(); }
+    static adopt() {                      // la page a été rechargée alors que l'enregistrement natif continue : on se rebranche dessus
+      const n = NATIVE(); if (!n) return null;
+      let st; try { st = JSON.parse(n.state()); } catch { return null; }
+      if (!st || !["recording", "paused", "interrupted"].includes(st.state)) return null;
+      const s = new NativeSession(); s.id = st.id; s.startPoll(); return s;
+    }
+    elapsed() { return this.sec; }
+    setState(st) { if (this.state !== st) { this.state = st; this.onState(st); } }
+    get active() { return this.intended === "recording" || this.intended === "paused"; }
+
+    async start(meta, withTab, profile = "equilibre") {
+      if (withTab) throw new Error("Le partage d'un onglet n'existe pas dans l'application : utilisez le micro (placez le téléphone près de la source).");
+      const n = this.n;
+      if (!n.hasMicPermission()) {
+        await new Promise((res) => { const f = () => { window.removeEventListener("gmeeting-permissions", f); res(); }; window.addEventListener("gmeeting-permissions", f); n.requestPermissions(); setTimeout(f, 60000); });
+        if (!n.hasMicPermission()) throw new Error("Autorisez le micro pour enregistrer (Réglages Android → Applications → GMeeting → Autorisations).");
+      }
+      this.meta = meta;
+      const id = n.start(JSON.stringify(meta || {}), (PROFILES[profile] || PROFILES.equilibre).kbps);
+      if (!id) throw new Error("Impossible de démarrer l'enregistrement.");
+      this.id = id; this.startPoll();
+      // le service démarre de façon asynchrone : on attend le premier état (ou son erreur)
+      for (let i = 0; i < 20; i++) {
+        await sleep(150); const st = this.poll();
+        if (st && st.state !== "idle") return id;
+        if (st && st.error) break;
+      }
+      this.stopPoll(); this.intended = "stopped";
+      const err = (() => { try { return JSON.parse(n.state()).error; } catch { return ""; } })();
+      throw new Error(err || "Micro indisponible : un appel ou une autre application l'utilise-t-il ?");
+    }
+    startPoll() { this.intended = "recording"; this.stopPoll(); this.timer = setInterval(() => this.poll(), 400); this.poll(); }
+    stopPoll() { clearInterval(this.timer); }
+    poll() {
+      let st; try { st = JSON.parse(this.n.state()); } catch { return null; }
+      if (!st) return null;
+      if (st.state === "idle") {
+        if (this.intended !== "stopped" && this.state !== "idle") { this.intended = "stopped"; this.setState("stopped"); this.stopPoll(); }   // arrêté depuis la notification
+        return st;
+      }
+      this.sec = st.elapsed || 0; this.onLevel(st.level || 0);
+      this.intended = st.state === "paused" ? "paused" : "recording";
+      this.setState(st.state);
+      return st;
+    }
+    pause() { this.n.pause(); }
+    resume() { this.n.resume(); }
+    mark() { this.n.mark(); return ++this.markCount; }
+    recover() {}
+    async finish(metaUpdate = {}, extra = {}) {
+      this.intended = "stopped"; this.stopPoll();
+      const meta = { ...(this.meta || {}), ...Object.fromEntries(Object.entries(metaUpdate).filter(([, v]) => v)) };
+      this.n.finish(JSON.stringify({ meta, attachment_ids: extra.attachment_ids || [] }));
+      this.setState("stopped");
+      // La réunion n'existe sur le serveur qu'une fois le dernier segment reçu : on attend un peu, sinon l'envoi continue en arrière-plan.
+      for (let i = 0; i < 30; i++) {
+        await sleep(1000);
+        try { const r = await fetch("/api/meetings/" + this.id, { cache: "no-store" }); if (r.ok) return true; } catch {}
+      }
+      throw new Error("pending");
+    }
+    async cancel() { this.intended = "stopped"; this.stopPoll(); this.n.cancel(); this.setState("stopped"); }
+  }
+
+  return { PROFILES, get Session() { return NATIVE() ? NativeSession : Session; }, adoptNative: () => NativeSession.adopt(), orphans, discard, requestFinish, completeFinish, resumePending, flush, pendingCount, onProgress: (f) => (listeners.add(f), () => listeners.delete(f)), store };
 })();
