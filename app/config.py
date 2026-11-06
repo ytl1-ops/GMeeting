@@ -6,6 +6,7 @@ from pathlib import Path
 
 DATA_DIR = Path(os.getenv("DATA_DIR", Path(__file__).resolve().parent.parent / "data"))
 AUDIO_DIR = DATA_DIR / "audio"
+TMP_DIR = DATA_DIR / "tmp"                 # fichiers temporaires (gros envois) : sur disque, pas dans un /tmp en mémoire vive
 ATTACH_DIR = DATA_DIR / "attachments"
 ARCHIVE_DIR = DATA_DIR / "archive"        # audio conservé (KEEP_AUDIO), un fichier Opus compact par réunion
 DB_PATH = DATA_DIR / "gmeeting.db"
@@ -38,5 +39,11 @@ MAX_ATTACH_PER_MEETING = int(os.getenv("MAX_ATTACH_PER_MEETING", "20"))
 # Budget de texte des pièces jointes transmis au modèle de rédaction (réparti entre elles)
 ATTACH_CONTEXT_CHARS = int(os.getenv("ATTACH_CONTEXT_CHARS", "120000"))
 
-for d in (DATA_DIR, AUDIO_DIR, ARCHIVE_DIR, ATTACH_DIR):
+for d in (DATA_DIR, AUDIO_DIR, ARCHIVE_DIR, ATTACH_DIR, TMP_DIR):
     d.mkdir(parents=True, exist_ok=True)
+
+# Un import de 1 Go est mis en tampon par le serveur web : sur un conteneur, /tmp est souvent un système de fichiers en mémoire.
+# On dirige donc tous les fichiers temporaires (Python et sous-processus comme ffmpeg) vers le volume de données.
+import tempfile  # noqa: E402
+os.environ["TMPDIR"] = str(TMP_DIR)
+tempfile.tempdir = str(TMP_DIR)

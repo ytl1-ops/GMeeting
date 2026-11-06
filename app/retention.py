@@ -32,8 +32,22 @@ def purge(days: int | None = None) -> int:
     return removed
 
 
+def clean_tmp(max_age_hours: float = 24) -> int:
+    """Supprime les fichiers temporaires abandonnés (envoi interrompu, arrêt brutal) vieux de plus de `max_age_hours`."""
+    limit = time.time() - max_age_hours * 3600
+    n = 0
+    for p in config.TMP_DIR.iterdir():
+        try:
+            if p.is_file() and p.stat().st_mtime < limit:
+                p.unlink(); n += 1
+        except OSError:
+            pass
+    return n
+
+
 def schedule(every_hours: float = 6) -> None:
     """Purge au démarrage puis toutes les `every_hours` heures (thread démon)."""
+    clean_tmp()                                   # toujours, même sans rétention : un volume ne doit pas se remplir de résidus
     if config.RETENTION_DAYS <= 0:
         return
 
@@ -41,6 +55,7 @@ def schedule(every_hours: float = 6) -> None:
         while True:
             try:
                 purge()
+                clean_tmp()
             except Exception:  # noqa: BLE001  (ne jamais faire tomber le serveur pour une purge)
                 import traceback
                 traceback.print_exc()

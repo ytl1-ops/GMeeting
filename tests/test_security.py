@@ -102,3 +102,15 @@ def test_purge_is_disabled_by_default(monkeypatch):
     monkeypatch.setattr(threading, "Thread", lambda *a, **k: started.append(1))
     retention.schedule()
     assert started == []                                                  # aucun thread si désactivé
+
+
+def test_temporary_files_go_to_the_data_volume_and_stale_ones_are_cleaned(tmp_path, monkeypatch):
+    import os, tempfile, time
+    assert tempfile.tempdir == str(config.TMP_DIR) and os.environ["TMPDIR"] == str(config.TMP_DIR)   # gros envois : disque, pas RAM
+    with tempfile.NamedTemporaryFile() as f:
+        assert f.name.startswith(str(config.TMP_DIR))
+    old, fresh = config.TMP_DIR / "old.part", config.TMP_DIR / "fresh.part"
+    old.write_bytes(b"x"); fresh.write_bytes(b"x")
+    os.utime(old, (time.time() - 3 * 86400,) * 2)
+    assert retention.clean_tmp() >= 1 and not old.exists() and fresh.exists()
+    fresh.unlink()

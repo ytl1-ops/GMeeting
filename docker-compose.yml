@@ -1,23 +1,39 @@
 # Déploiement avec HTTPS automatique (le micro du navigateur n'est autorisé qu'en HTTPS ou sur localhost).
-#   cp .env.example .env        # renseigner ANTHROPIC_API_KEY, GMEETING_PASSWORD, DOMAIN (ex. reunions.mon-domaine.fr)
-#   docker compose up -d
-# Sans DOMAIN : https://localhost (certificat local généré par Caddy). Avec un nom de domaine public pointant vers ce serveur :
+#   ./deploy/install.sh reunions.mon-domaine.fr        # prépare .env, construit, démarre, vérifie  (voir DEPLOY.md)
+# ou à la main : cp .env.example .env ; (renseigner ANTHROPIC_API_KEY, GMEETING_PASSWORD, DOMAIN) ; docker compose up -d --build
+# Sans DOMAIN : https://localhost (certificat local de Caddy). Avec un domaine public pointant vers ce serveur :
 # certificat Let's Encrypt obtenu et renouvelé automatiquement.
+name: gmeeting
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "5" }     # journaux limités : un serveur qui tourne des mois ne doit pas saturer son disque
+
 services:
   app:
     build: .
+    image: gmeeting:local
     restart: unless-stopped
     env_file: .env
+    init: true                           # processus 1 propre : récupère les processus ffmpeg orphelins
+    stop_grace_period: 60s               # laisse finir une écriture en cours ; un traitement interrompu est relançable de toute façon
+    read_only: true                      # racine du conteneur en lecture seule…
+    tmpfs:
+      - /tmp:size=64m                    # …sauf un petit /tmp (caches) ; les gros fichiers temporaires vont dans le volume /data
     volumes:
       - gmeeting-data:/data
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
     expose:
-      - "8000"                 # joignable uniquement par Caddy, jamais publié directement
+      - "8000"                           # joignable uniquement par Caddy, jamais publié directement
+    logging: *logging
 
   caddy:
     image: caddy:2
     restart: unless-stopped
     depends_on:
-      - app
+      app:
+        condition: service_healthy       # Caddy ne démarre qu'une fois l'application prête (sonde /healthz du Dockerfile)
     ports:
       - "80:80"
       - "443:443"
@@ -25,8 +41,12 @@ services:
       DOMAIN: ${DOMAIN:-localhost}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
+      - caddy-data:/data                 # certificats : à conserver (limites de Let's Encrypt)
       - caddy-config:/config
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]          # seule capacité nécessaire : écouter sur 80 et 443
+    security_opt: ["no-new-privileges:true"]
+    logging: *logging
 
 volumes:
   gmeeting-data:

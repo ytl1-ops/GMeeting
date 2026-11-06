@@ -20,15 +20,18 @@ cp .env.example .env               # renseigner ANTHROPIC_API_KEY, puis : export
 uvicorn app.main:app               # http://localhost:8000
 ```
 
-**Avec Docker et HTTPS automatique** (recommandé pour l'usage sur téléphone : le micro n'est autorisé qu'en HTTPS ou sur localhost)
+**Sur un serveur, avec Docker et HTTPS automatique** (recommandé pour l'usage sur téléphone : le micro n'est autorisé qu'en HTTPS ou sur localhost)
 
 ```bash
-cp .env.example .env               # renseigner ANTHROPIC_API_KEY, GMEETING_PASSWORD et DOMAIN (ex. reunions.mon-domaine.fr)
-docker compose up -d               # Caddy obtient et renouvelle le certificat ; l'application n'est jamais exposée directement
+git clone <ce dépôt> /opt/gmeeting && cd /opt/gmeeting
+./deploy/install.sh reunions.mon-domaine.fr     # crée .env, génère un mot de passe fort, construit, démarre, vérifie
 ```
 
-> Les fichiers Docker/Caddy ont été validés syntaxiquement (`docker compose config`) mais **l'image n'a pas pu être construite ni lancée**
-> dans l'environnement de développement (pas de démon Docker) : faites un premier essai avant de l'exposer.
+Guide complet (serveur, DNS, pare-feu, **sauvegardes planifiées**, restauration, mises à jour, sécurité, dépannage) : **[DEPLOY.md](DEPLOY.md)**.
+Scripts : `deploy/install.sh`, `deploy/update.sh` (sauvegarde + mise à jour + retour arrière indiqué), `deploy/backup.sh`, `deploy/restore.sh`.
+
+> L'image est construite et démarrée **à chaque modification par la CI GitHub** avec le vrai Dockerfile et le durcissement de production
+> (utilisateur non-root, système de fichiers en lecture seule, aucune capacité Linux). Un premier essai sur votre serveur reste recommandé.
 
 Ouvrez l'application **une fois en ligne** (elle se met en cache pour fonctionner ensuite hors-ligne) et installez-la sur l'écran d'accueil.
 
@@ -202,4 +205,4 @@ GitHub Actions (`.github/workflows/ci.yml`) exécute les tests Python (3.12 et 3
 
 `app/main.py` (API) · `security.py` (auth, CSRF, en-têtes) · `pipeline.py` (acquisition → transcription → rédaction) · `ingest.py`, `recordings.py`,
 `transcribe.py`, `generate.py` · `attachments.py`, `annexes.py` (pièces jointes) · `exporters.py` (PDF/Word/Excel), `slides.py` + `pptx_export.py` (PowerPoint) ·
-`branding.py` (gabarit) · `retention.py` · `static/` (interface JS sans build : `app.js`, `recorder.js`, `sw.js`).
+`branding.py` (gabarit) · `retention.py` · `backup.py` (sauvegarde/restauration) · `deploy/` (scripts serveur) · `static/` (interface JS sans build : `app.js`, `recorder.js`, `sw.js`).
