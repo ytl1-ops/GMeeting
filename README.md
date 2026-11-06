@@ -155,6 +155,11 @@ native (non fournie). Hors-ligne, l'audio n'existe que sur l'appareil jusqu'à l
 navigateurs, notamment Safari, purgent les données d'un site peu utilisé ; l'application installée est mieux protégée),
 et gardez de la place (≈ 30-60 Mo par heure). Un avertissement s'affiche si l'espace est faible.
 
+## Application Android (en préparation pour Google Play)
+Client natif du serveur de l'utilisateur : enregistreur en service de premier plan (écran verrouillé, appels, mode avion), partage depuis Outlook / Word /
+Excel / PDF / liens, interface web intégrée. Code dans `android/` (noyau Kotlin testé + module `:app`), CI `android`, essai local : `docs/ESSAI_LOCAL.md`,
+publication : `docs/PLAYSTORE.md` et `docs/store/`. **Non encore éprouvée sur téléphone réel.**
+
 ## Gabarit personnalisable (menu « 🎨 Gabarit »)
 
 Logo, nom de l'organisation, texte d'en-tête, pied de page, mention de confidentialité (en rouge) et couleur des

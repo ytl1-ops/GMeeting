@@ -261,9 +261,9 @@ function recPanel() {
   stopRecorderCleanup = () => { clearInterval(iv); unsub(); }; // la session continue même si l'on change de page
   return el("div", { class: "rec-box" }, el("div", { class: "row", style: "justify-content:center" }, mode, quality), qualityNote, timer, meter, banner,
     el("div", { class: "row", style: "justify-content:center;margin:12px 0" }, btn, pauseBtn, markBtn, stopBtn), tapBtn, net, log,
-    offlineTip(),
+    ...(window.GMeetingNative ? [el("p", { class: "hint" }, "Enregistrement assuré par l'application : il continue écran verrouillé et pendant un appel, et l'audio non envoyé reste sur le téléphone.")] : [offlineTip(),
     el("p", { class: "hint" }, "L'audio est écrit sur l'appareil puis envoyé en continu : une coupure réseau, un appel téléphonique ou la fermeture de la page ne font pas perdre l'enregistrement. " +
-      "Gardez la page ouverte et l'écran allumé. L'accès au micro exige HTTPS ou localhost."));
+      "Gardez la page ouverte et l'écran allumé. L'accès au micro exige HTTPS ou localhost.")]));
 }
 
 function urlPanel() {
