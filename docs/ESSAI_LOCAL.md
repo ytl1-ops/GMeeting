@@ -15,6 +15,14 @@ Test : ouvrez l'adresse affichée (`http://192.168.1.20:8000`) dans le navigateu
 
 *Pour un usage durable (HTTPS, sauvegardes, démarrage automatique)* : `DEPLOY.md` (Docker + Caddy).
 
+### Lien HTTPS pour tester depuis le navigateur du téléphone (sans APK, micro réel)
+```bash
+./deploy/local.sh --tunnel      # nécessite « cloudflared » (gratuit, sans compte)
+```
+Le script affiche un lien `https://….trycloudflare.com` : ouvrez-le sur le téléphone, saisissez le mot de passe (`.env`) et enregistrez avec le vrai micro.
+⚠ Le lien est public tant que le script tourne et seul le mot de passe protège l'accès ; fermez avec Ctrl+C. Fonction non testée avec un vrai
+tunnel dans l'environnement de développement (le démarrage sans tunnel, lui, est testé).
+
 ## 2. Installer l'application de test (APK « debug »)
 1. GitHub → dépôt `ytl1-ops/GMeeting` → onglet **Actions** → workflow **android** → dernière exécution verte de la branche
    `claude/meeting-recording-app-va7j0s` → section **Artifacts** → télécharger **android-build** (zip) → extraire `app-debug.apk`.
