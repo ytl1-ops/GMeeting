@@ -1,0 +1,1290 @@
+<title>GMeeting – Démonstration</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+:root{--navy:#1f3a5f;--navy2:#2d5287;--bg:#f4f6fa;--card:#fff;--ink:#1c2430;--mute:#5f6b7a;--line:#dde3ec;--ok:#1f8a4c;--warn:#b86e00;--err:#c0392b;--rec:#d92d20}
+@media (prefers-color-scheme:dark){:root{--bg:#10151c;--card:#19212c;--ink:#e8edf4;--mute:#9aa7b8;--line:#2a3544;--navy:#7fa6e0;--navy2:#9bbcf0}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+.top{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:18px;color:var(--navy);text-decoration:none}
+.cfg{font-size:12px;color:var(--mute)}
+.wrap{max-width:960px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:8px 0 16px}h2{font-size:17px;margin:0 0 10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:14px;border-bottom:1px solid var(--line)}
+.tab{border:0;background:none;padding:9px 14px;font:inherit;color:var(--mute);cursor:pointer;border-bottom:3px solid transparent}
+.tab[aria-selected=true]{color:var(--navy);border-color:var(--navy);font-weight:600}
+label{display:block;font-size:13px;font-weight:600;margin:10px 0 4px}
+input,textarea,select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--bg);color:var(--ink)}
+textarea{min-height:90px;resize:vertical}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+@media (max-width:640px){.grid{grid-template-columns:1fr}}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--navy);background:var(--navy);color:#fff;padding:9px 16px;border-radius:8px;font:inherit;font-weight:600;cursor:pointer;text-decoration:none}
+@media (prefers-color-scheme:dark){.btn{color:#10151c}}
+.btn.sec{background:transparent;color:var(--navy)}
+.btn.danger{background:transparent;color:var(--err);border-color:var(--err)}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.rec-box{text-align:center;padding:18px 8px}
+.rec-btn{width:84px;height:84px;border-radius:50%;border:0;background:var(--rec);color:#fff;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 0 0 6px rgba(217,45,32,.18)}
+.rec-btn.live{animation:pulse 1.4s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 14px rgba(217,45,32,.05)}}
+.timer{font-size:34px;font-variant-numeric:tabular-nums;font-weight:300;margin:10px 0}
+.meter{height:8px;background:var(--line);border-radius:4px;overflow:hidden;max-width:360px;margin:6px auto}
+.meter i{display:block;height:100%;width:0;background:var(--ok);transition:width .08s}
+.hint{font-size:12.5px;color:var(--mute)}
+.list{list-style:none;margin:0;padding:0}
+.list li a{display:flex;justify-content:space-between;gap:10px;padding:12px 4px;border-bottom:1px solid var(--line);color:inherit;text-decoration:none}
+.list li a:hover{background:var(--bg)}
+.badge{font-size:11.5px;padding:2px 9px;border-radius:99px;border:1px solid var(--line);white-space:nowrap;align-self:center}
+.badge.done{color:var(--ok);border-color:var(--ok)}.badge.error{color:var(--err);border-color:var(--err)}
+.badge.processing,.badge.queued,.badge.analyzing{color:var(--warn);border-color:var(--warn)}
+.exports{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px;align-items:center}
+.doc{padding:8px 4px}
+.doc .dt{text-align:center;color:var(--navy);font-size:21px;font-weight:800;margin:6px 0 2px}
+.doc .ds{text-align:center;color:var(--mute);font-weight:600;margin-bottom:12px}
+.doc h3{color:var(--navy);font-size:15.5px;margin:18px 0 6px;border-bottom:2px solid var(--navy);padding-bottom:2px}
+.doc h4{font-size:14px;margin:12px 0 2px}
+.doc p{margin:5px 0;white-space:pre-wrap}
+.doc ul,.doc ol{margin:4px 0 8px;padding-left:22px}
+.doc table{width:100%;border-collapse:collapse;font-size:13.5px;margin:6px 0}
+.doc th{background:var(--navy);color:#fff;text-align:left;padding:6px 8px}
+@media (prefers-color-scheme:dark){.doc th{color:#10151c}}
+.doc td{border:1px solid var(--line);padding:6px 8px;vertical-align:top}
+.doc .meta td:first-child{font-weight:600;width:130px;border:0;border-bottom:1px solid var(--line)}
+.doc .meta td{border:0;border-bottom:1px solid var(--line)}
+.sign{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}.sign div{border:1px solid var(--line);height:90px;padding:6px;font-size:13px}
+.transcript{font:13.5px/1.6 ui-monospace,Menlo,Consolas,monospace;min-height:380px}
+.progress{display:flex;align-items:center;gap:12px;color:var(--warn)}
+.spin{width:18px;height:18px;border:3px solid var(--line);border-top-color:var(--warn);border-radius:50%;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.err{color:var(--err);background:rgba(192,57,43,.08);border:1px solid var(--err);border-radius:8px;padding:10px 12px;white-space:pre-wrap}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:8px;max-width:90vw;z-index:20}
+.empty{color:var(--mute);text-align:center;padding:24px}
+@media print{.top,.exports,.tabs,.no-print{display:none!important}.card{border:0}}
+a{color:var(--navy2)}
+
+.nav{margin-left:auto;margin-right:14px}.nav a{font-size:14px;text-decoration:none;font-weight:600}
+.band{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 4px 8px;border-bottom:3px solid var(--navy);margin-bottom:14px}
+.band .l{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px}.band img{max-height:48px;max-width:180px;object-fit:contain}
+.band .r{font-size:12.5px;color:var(--mute);text-align:right}
+.bandfoot{display:flex;justify-content:space-between;font-size:11.5px;color:var(--mute);border-top:1px solid var(--line);padding-top:6px;margin-top:14px}
+.bandfoot b{color:var(--err)}
+.colorrow{display:flex;gap:10px;align-items:center}.colorrow input[type=color]{width:52px;height:38px;padding:2px}.colorrow input[type=text]{width:120px}
+.logo-prev{border:1px dashed var(--line);border-radius:8px;padding:10px;min-height:70px;display:flex;align-items:center;justify-content:center;background:#fff}
+.logo-prev img{max-height:70px;max-width:100%}
+
+.recbar{background:var(--rec);color:#fff;font-weight:700;font-size:13px;padding:4px 12px;border-radius:99px;text-decoration:none;margin-left:12px;animation:blink 1.6s infinite}
+.recbar.warn{background:var(--warn)}
+@keyframes blink{50%{opacity:.65}}
+.rec-banner{margin:10px auto;max-width:520px;padding:10px 14px;border-radius:8px;font-weight:600;border:1px solid var(--warn);color:var(--warn);background:rgba(184,110,0,.08)}
+.rec-banner.paused{border-color:var(--line);color:var(--mute);background:none}
+.rec-banner.needs-tap{border-color:var(--rec);color:var(--rec)}
+.alert{background:rgba(184,110,0,.1);border:1px solid var(--warn);border-radius:10px;padding:12px 14px;margin-bottom:16px}
+[hidden]{display:none!important}
+.top{flex-wrap:wrap;gap:6px 10px}
+.recbar{white-space:nowrap;margin-left:0}
+.cfg{flex-basis:100%;order:9}
+@media (min-width:760px){.cfg{flex-basis:auto;order:0}}
+@media (max-width:759px){.cfg{display:none}.nav{margin-left:auto;margin-right:0}}
+select{text-overflow:ellipsis}
+
+/* ---- aperçu des diapositives ---- */
+.slides{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(min(100%,430px),1fr))}
+.sl{container-type:inline-size;aspect-ratio:16/9;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff;color:#1c2430}
+.sl .si{font-size:1.75cqw;line-height:1.25;padding:3.2cqw 3.6cqw;height:100%;overflow:hidden;position:relative}
+.sl.vis.cards,.sl.vis.kpis,.sl.vis.people,.sl.vis.timeline,.sl.vis.table{background:#f4f6fa}
+.sl .sh{display:flex;align-items:center;gap:1.4cqw;margin-bottom:2.2cqw}
+.sl .st{font-size:3.1cqw;font-weight:800;color:var(--sc)}.sl.vis .st{color:#1c2430}
+.sl:not(.vis) .sh::after{content:"";display:block}
+.badge-i{display:inline-grid;place-items:center;width:4.4cqw;height:4.4cqw;border-radius:50%;background:var(--sc);flex:none;font-size:2.3cqw}
+.badge-i.big{width:13cqw;height:13cqw;background:#fff;font-size:6.5cqw}
+.sl.cover .si{background:linear-gradient(135deg,color-mix(in srgb,var(--sc) 55%,#000),var(--sc));color:#fff;display:flex;flex-direction:column;justify-content:center;gap:1.2cqw;padding-left:6cqw}
+.sl.cover:not(.vis) .si{background:linear-gradient(90deg,var(--sc) 62%,#eef0f4 62%)}
+.cv-sub{font-size:1.5cqw;letter-spacing:.1em;text-transform:uppercase;opacity:.85;font-weight:700}.cv-t{font-size:4.6cqw;font-weight:800;max-width:60%;line-height:1.15}.cv-m{font-size:1.9cqw;margin-top:2cqw}
+.sl.cover:not(.vis) .cv-m{position:absolute;right:3.5cqw;top:34%;width:30%;color:#1c2430;font-size:1.45cqw}
+.kp{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2cqw;margin-bottom:2cqw}
+.kt{background:#fff;border:1px solid var(--line);border-left:.6cqw solid var(--sc);padding:1.6cqw;display:flex;flex-direction:column;gap:.3cqw}
+.kt b{font-size:5cqw;color:var(--sc);line-height:1}.kp.x .kt b{font-size:3cqw}.kt small{color:#5f6b7a;font-size:1.6cqw}.kt .emo{font-size:2.4cqw}
+.hl{border-left:.5cqw solid var(--sc);padding-left:2cqw;font-style:italic;font-size:2cqw}
+.cd{display:grid;grid-template-columns:repeat(auto-fit,minmax(24cqw,1fr));gap:2cqw}
+.c{background:#fff;border:1px solid var(--line);border-top:.7cqw solid var(--sc);padding:1.8cqw;display:flex;gap:1.6cqw;align-items:flex-start}
+.c .badge-i{color:#fff}.c b{display:block;font-size:2cqw}.c small{display:block;color:#5f6b7a;margin-top:.5cqw}.c em{display:inline-block;margin-top:.8cqw;font-style:normal;font-weight:700;font-size:1.4cqw}
+.sl p{margin:.6cqw 0 1.2cqw;font-size:2.2cqw;white-space:pre-wrap}.sl ul{margin:.6cqw 0;padding-left:3cqw;font-size:2cqw}.sl li{margin:.5cqw 0}
+.sl .sec{border-left:.5cqw solid var(--sc);padding-left:1.6cqw;margin-top:1.6cqw}.sl .sec.g{border-color:#2e9e5b}.sl .sec small{font-weight:800;color:var(--sc)}.sl .sec.g small{color:#2e9e5b}
+.sl .tp{display:grid;grid-template-columns:32% 1fr;padding:0}
+.tp .tl{background:linear-gradient(160deg,color-mix(in srgb,var(--sc) 55%,#000),var(--sc));color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2cqw;padding:2cqw;text-align:center}
+.tp .tl b{font-size:2.5cqw}.tp .tl small{font-weight:700}.tp .tr{padding:3.4cqw}.tp .sum{font-size:2.6cqw;font-weight:700}
+.tp .dec{background:#e3f4ea;border-radius:1cqw;padding:1cqw 1.6cqw;font-weight:700;font-size:1.7cqw;margin-top:1cqw}
+.sl table{width:100%;border-collapse:collapse;font-size:1.65cqw}.sl th{background:var(--sc);color:#fff;text-align:left;padding:.9cqw 1.2cqw}.sl td{padding:.9cqw 1.2cqw;border-bottom:1px solid var(--line);background:#fff}
+.tb2{display:grid;grid-template-columns:62% 1fr;gap:2cqw}.ch{background:#fff;border:1px solid var(--line);padding:1.6cqw;display:flex;flex-direction:column;gap:1cqw;align-items:center;font-size:1.4cqw}
+.donut{width:12cqw;height:12cqw;border-radius:50%;-webkit-mask:radial-gradient(circle,transparent 38%,#000 39%);mask:radial-gradient(circle,transparent 38%,#000 39%)}
+.bar{display:flex;width:100%;gap:.8cqw;align-items:center}.bar span{width:30%;font-size:1.3cqw}.bar i{display:block;height:1.4cqw;background:var(--sc)}
+.pp{display:grid;grid-template-columns:repeat(4,1fr);gap:2cqw;text-align:center}.pp>div{display:flex;flex-direction:column;align-items:center;gap:.3cqw}
+.av{width:7cqw;height:7cqw;border-radius:50%;background:var(--sc);color:#fff;display:grid;place-items:center;font-size:2.6cqw;font-weight:800}.pp small{color:#5f6b7a;font-size:1.3cqw}
+.pp em{font-style:normal;font-weight:700;font-size:1.2cqw;padding:.2cqw 1cqw;border-radius:99px;background:#e3f4ea;color:#2e9e5b}.pp em.s-excusé{background:#fcf1db;color:#d98a00}.pp em.s-absent{background:#fbe5e5;color:#d64545}
+.tm{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:1.4cqw;margin-top:3cqw}.tm>div{display:flex;flex-direction:column;align-items:center;gap:1cqw;text-align:center}
+.tm .dot{width:4cqw;height:4cqw;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:800;font-size:1.8cqw}
+.tm .tc{background:#fff;border:1px solid var(--line);padding:1.2cqw;width:100%;font-size:1.5cqw}.tm .tc small{display:block;color:#5f6b7a;margin-top:.5cqw}
+
+/* ---- pièces jointes ---- */
+.att-list,.att-cards{list-style:none;margin:8px 0;padding:0;display:grid;gap:8px}
+.att-list li{display:flex;gap:10px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.att-list .an,.att-head .an{display:flex;flex-direction:column;min-width:0;flex:1}.att-list small,.att-head small{color:var(--mute);overflow:hidden;text-overflow:ellipsis}
+.att-list .x{border:0;background:none;color:var(--err);cursor:pointer;font-size:16px}
+.att-card{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--bg)}
+.att-head{display:flex;gap:12px;align-items:flex-start}.att-head .emo{font-size:24px}.att-head .inc{font-size:13px;white-space:nowrap;margin:0;display:flex;gap:4px;align-items:center;font-weight:600}.att-head .inc input{width:auto}
+.att-detail{margin-top:10px;padding:10px;background:var(--card);border-radius:8px;overflow:auto;max-height:340px}
+.att-detail pre{white-space:pre-wrap;font:12.5px/1.5 ui-monospace,Menlo,Consolas,monospace;margin:8px 0}
+.meta-t th{text-align:left;padding-right:12px;color:var(--mute);font-weight:600;vertical-align:top}.mini-t{font-size:12px;border-collapse:collapse;margin:4px 0 10px}.mini-t th,.mini-t td{border:1px solid var(--line);padding:3px 6px}
+.annex-toggle{font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:4px;margin:0 0 0 8px}.annex-toggle input{width:auto}
+.doc hr.pb{border:0;border-top:2px dashed var(--line);margin:22px 0}.doc figure{margin:10px 0;text-align:center}.doc figure img{max-width:100%;max-height:420px;border:1px solid var(--line)}.doc figcaption{font-size:12px;color:var(--mute)}
+.sl .sl-img{margin:0;text-align:center}.sl .sl-img img{max-width:100%;max-height:30cqw}.sl .sl-img figcaption{font-size:1.5cqw;color:#5f6b7a}
+.audio-box{margin-bottom:12px;display:grid;gap:4px}
+
+/* onglets d'une réunion : défilement horizontal sur mobile (7 onglets), avec un fondu qui signale la suite */
+@media (max-width:640px){
+  .tabs.scroll{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(to right,#000 88%,transparent);mask-image:linear-gradient(to right,#000 88%,transparent);scroll-snap-type:x proximity}
+  .tabs.scroll::-webkit-scrollbar{display:none}
+  .tabs.scroll .tab{white-space:nowrap;flex:none;scroll-snap-align:start}
+}
+
+html{color-scheme:light}
+.demo-note{background:#fff7e6;color:#5c3d00;border-bottom:1px solid #f0d9a8;padding:8px max(16px,env(safe-area-inset-left,0px));font-size:13px;line-height:1.4}
+.top,.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+</style>
+<div class="demo-note"><strong>Démonstration.</strong> Interface réelle de l'application, avec des données d'exemple : rien n'est enregistré ni envoyé. Le bouton REC simule un enregistrement (sans micro). Les exports ne sont pas téléchargeables ici.</div>
+<header class="top">
+  <a class="brand" href="#/" aria-label="Accueil GMeeting">GMeeting</a>
+  <a id="recbar" class="recbar" href="#/" hidden aria-live="polite"></a>
+  <nav class="nav"><a href="#/brand">Gabarit</a></nav>
+  <span id="cfg" class="cfg" role="status"></span>
+</header>
+<main id="app" class="wrap"></main>
+<div id="toast" class="toast" role="alert" hidden></div>
+<script>
+(() => {
+  const DATA = {"meeting": {"id": "32a0f7fdf28d", "title": "Comité de pilotage sûreté – Site Nord", "created_at": "2026-11-07T06:11:33", "meeting_date": "2026-11-04", "location": "Teams", "participants": null, "context": null, "language": "fr", "source_type": "text", "source_url": null, "status": "done", "progress": "Terminé", "error": null, "duration": null, "transcript": "Alice : on valide le budget. Bob : je prépare le contrat avant vendredi.", "analysis": {"titre": "Comité de pilotage sûreté – Site Nord", "date": "2026-11-04", "lieu": "Teams", "objet": "Faire le point sur les incidents du T3 et arbitrer le budget vidéoprotection 2027.", "participants": [{"nom": "Awa Koné", "fonction": "Directrice sûreté", "statut": "présent"}, {"nom": "Marc Dubois", "fonction": "DSI", "statut": "présent"}, {"nom": "Léa Martin", "fonction": "Achats", "statut": "excusé"}], "ordre_du_jour": ["Bilan des incidents T3", "Budget vidéoprotection", "Questions diverses"], "resume": "Le comité a constaté une baisse de 18 % des incidents au T3. Le renouvellement des caméras du site Nord a été validé sous réserve d'un second devis.", "points_abordes": [{"sujet": "Bilan des incidents T3", "discussion": "Awa Koné a présenté une baisse de 18 % des incidents. Les intrusions nocturnes restent le principal sujet. Le DSI a souligné des angles morts.", "positions": ["Le DSI souhaite prioriser l'accès nord.", "Les Achats demandent deux devis."], "decisions": ["Maintenir le dispositif de rondes renforcé jusqu'à fin décembre."]}, {"sujet": "Budget vidéoprotection", "discussion": "Le budget de 120 k€ a été examiné. Un second devis est nécessaire avant engagement.", "positions": [], "decisions": []}], "decisions": [{"decision": "Valider le principe du renouvellement des caméras.", "responsable": "Awa Koné", "contexte": ""}], "actions": [{"action": "Obtenir un second devis caméras", "responsable": "Léa Martin", "echeance": "15/11/2026", "priorite": "haute"}, {"action": "Cartographier les angles morts", "responsable": "Marc Dubois", "echeance": "À définir", "priorite": "basse"}], "risques_vigilance": ["Retard de livraison des caméras (délai fournisseur 10 semaines)."], "enjeux": ["Réduire les intrusions nocturnes", "Tenir l'enveloppe budgétaire"], "recommandations": ["Arbitrer le budget sous 2 semaines."], "questions_ouvertes": ["Faut-il mutualiser avec le site Sud ?"], "prochaine_reunion": "Le 2 décembre 2026, même format.", "messages_cles": [], "chiffres_cles": [], "annexes": [], "recoupements": [], "suivi_anterieur": []}, "analyzed_atts": "", "analyzed_at": "2026-11-07T06:11:34", "has_audio": false, "atts_stale": false}, "list": [{"id": "32a0f7fdf28d", "title": "Comité de pilotage sûreté – Site Nord", "created_at": "2026-11-07T06:11:33", "meeting_date": "2026-11-04", "source_type": "text", "status": "done", "progress": "Terminé", "error": null, "duration": null}], "config": {"transcribe_provider": "openai", "has_anthropic": true, "has_openai": true, "model": "claude-sonnet-5-5", "keep_audio": false, "retention_days": 0, "audio_kbps": 32, "audio_enhance": true}, "branding": {"org_name": "", "header_right": "", "footer": "", "confidential": "", "color": "#1F3A5F", "has_logo": false}, "attachments": [], "previews": {"pv": [{"t": "title", "text": "PROCÈS-VERBAL DE RÉUNION"}, {"t": "subtitle", "text": "Comité de pilotage sûreté – Site Nord"}, {"t": "meta", "rows": [["Objet", "Faire le point sur les incidents du T3 et arbitrer le budget vidéoprotection 2027."], ["Date", "2026-11-04"], ["Lieu / outil", "Teams"]]}, {"t": "h", "text": "Participants"}, {"t": "table", "name": "Participants", "headers": ["Nom", "Fonction", "Statut"], "widths": [0.4, 0.4, 0.2], "rows": [["Awa Koné", "Directrice sûreté", "présent"], ["Marc Dubois", "DSI", "présent"], ["Léa Martin", "Achats", "excusé"]]}, {"t": "h", "text": "Ordre du jour"}, {"t": "numbered", "items": ["Bilan des incidents T3", "Budget vidéoprotection", "Questions diverses"]}, {"t": "h", "text": "Délibérations"}, {"t": "h2", "text": "1. Bilan des incidents T3"}, {"t": "p", "text": "Awa Koné a présenté une baisse de 18 % des incidents. Les intrusions nocturnes restent le principal sujet. Le DSI a souligné des angles morts."}, {"t": "p", "text": "Positions exprimées :", "bold": true}, {"t": "bullets", "items": ["Le DSI souhaite prioriser l'accès nord.", "Les Achats demandent deux devis."]}, {"t": "p", "text": "Décision(s) :", "bold": true}, {"t": "bullets", "items": ["Maintenir le dispositif de rondes renforcé jusqu'à fin décembre."]}, {"t": "h2", "text": "2. Budget vidéoprotection"}, {"t": "p", "text": "Le budget de 120 k€ a été examiné. Un second devis est nécessaire avant engagement."}, {"t": "h", "text": "Relevé des décisions"}, {"t": "table", "name": "Décisions", "headers": ["N°", "Décision", "Responsable"], "widths": [0.08, 0.67, 0.25], "rows": [["1", "Valider le principe du renouvellement des caméras.", "Awa Koné"]]}, {"t": "h", "text": "Plan d'actions"}, {"t": "table", "name": "Actions", "headers": ["N°", "Action", "Responsable", "Échéance", "Priorité"], "widths": [0.07, 0.43, 0.2, 0.17, 0.13], "rows": [["1", "Obtenir un second devis caméras", "Léa Martin", "15/11/2026", "Haute"], ["2", "Cartographier les angles morts", "Marc Dubois", "À définir", "Basse"]]}, {"t": "h", "text": "Points de vigilance"}, {"t": "bullets", "items": ["Retard de livraison des caméras (délai fournisseur 10 semaines)."]}, {"t": "h", "text": "Questions restées ouvertes"}, {"t": "bullets", "items": ["Faut-il mutualiser avec le site Sud ?"]}, {"t": "h", "text": "Prochaine réunion"}, {"t": "p", "text": "Le 2 décembre 2026, même format."}, {"t": "p", "text": "La séance est levée. Le présent procès-verbal est établi pour servir et valoir ce que de droit."}, {"t": "signatures", "labels": ["Le/la secrétaire de séance", "Le/la président(e) de séance"]}], "cr": [{"t": "title", "text": "COMPTE RENDU DE RÉUNION"}, {"t": "subtitle", "text": "Comité de pilotage sûreté – Site Nord"}, {"t": "meta", "rows": [["Objet", "Faire le point sur les incidents du T3 et arbitrer le budget vidéoprotection 2027."], ["Date", "2026-11-04"], ["Lieu / outil", "Teams"]]}, {"t": "h", "text": "Participants"}, {"t": "table", "name": "Participants", "headers": ["Nom", "Fonction", "Statut"], "widths": [0.4, 0.4, 0.2], "rows": [["Awa Koné", "Directrice sûreté", "présent"], ["Marc Dubois", "DSI", "présent"], ["Léa Martin", "Achats", "excusé"]]}, {"t": "h", "text": "Résumé"}, {"t": "p", "text": "Le comité a constaté une baisse de 18 % des incidents au T3. Le renouvellement des caméras du site Nord a été validé sous réserve d'un second devis."}, {"t": "h", "text": "Points abordés"}, {"t": "h2", "text": "Bilan des incidents T3"}, {"t": "p", "text": "Awa Koné a présenté une baisse de 18 % des incidents. Les intrusions nocturnes restent le principal sujet. Le DSI a souligné des angles morts."}, {"t": "h2", "text": "Budget vidéoprotection"}, {"t": "p", "text": "Le budget de 120 k€ a été examiné. Un second devis est nécessaire avant engagement."}, {"t": "h", "text": "Décisions"}, {"t": "table", "name": "Décisions", "headers": ["N°", "Décision", "Responsable"], "widths": [0.08, 0.67, 0.25], "rows": [["1", "Valider le principe du renouvellement des caméras.", "Awa Koné"]]}, {"t": "h", "text": "Actions à mener"}, {"t": "table", "name": "Actions", "headers": ["N°", "Action", "Responsable", "Échéance", "Priorité"], "widths": [0.07, 0.43, 0.2, 0.17, 0.13], "rows": [["1", "Obtenir un second devis caméras", "Léa Martin", "15/11/2026", "Haute"], ["2", "Cartographier les angles morts", "Marc Dubois", "À définir", "Basse"]]}, {"t": "h", "text": "Points de vigilance"}, {"t": "bullets", "items": ["Retard de livraison des caméras (délai fournisseur 10 semaines)."]}, {"t": "h", "text": "Prochaine réunion"}, {"t": "p", "text": "Le 2 décembre 2026, même format."}], "deck": {"slides": [{"layout": "cover", "title": "Comité de pilotage sûreté – Site Nord", "subtitle": "Compte rendu de réunion", "meta": [["Date", "2026-11-04"], ["Lieu", "Teams"], ["Objet", "Faire le point sur les incidents du T3 et arbitrer le budget vidéoprotection 2027."]], "objet": ""}, {"layout": "bullets", "title": "Objet et ordre du jour", "paragraph": "Faire le point sur les incidents du T3 et arbitrer le budget vidéoprotection 2027.", "items": ["1. Bilan des incidents T3", "2. Budget vidéoprotection", "3. Questions diverses"]}, {"layout": "table", "title": "Participants", "icon": "equipe", "headers": ["Nom", "Fonction", "Statut"], "rows": [["Awa Koné", "Directrice sûreté", "présent"], ["Marc Dubois", "DSI", "présent"], ["Léa Martin", "Achats", "excusé"]], "widths": [0.4, 0.4, 0.2], "charts": null}, {"layout": "bullets", "title": "Synthèse", "paragraph": "Le comité a constaté une baisse de 18 % des incidents au T3. Le renouvellement des caméras du site Nord a été validé sous réserve d'un second devis.", "items": []}, {"layout": "bullets", "title": "Enjeux", "paragraph": "", "items": ["Réduire les intrusions nocturnes", "Tenir l'enveloppe budgétaire"]}, {"layout": "topic", "title": "Bilan des incidents T3", "number": 1, "icon": null, "summary": "Awa Koné a présenté une baisse de 18 % des incidents. Les intrusions nocturnes restent le principal sujet. Le DSI a souligné des angles morts.", "bullets": ["Le DSI souhaite prioriser l'accès nord.", "Les Achats demandent deux devis."], "bullets_label": "Positions exprimées", "decisions": ["Maintenir le dispositif de rondes renforcé jusqu'à fin décembre."], "notes": "Awa Koné a présenté une baisse de 18 % des incidents. Les intrusions nocturnes restent le principal sujet. Le DSI a souligné des angles morts."}, {"layout": "topic", "title": "Budget vidéoprotection", "number": 2, "icon": null, "summary": "Le budget de 120 k€ a été examiné. Un second devis est nécessaire avant engagement.", "bullets": [], "bullets_label": "Positions exprimées", "decisions": [], "notes": "Le budget de 120 k€ a été examiné. Un second devis est nécessaire avant engagement."}, {"layout": "table", "title": "Décisions", "icon": "decision", "headers": ["N°", "Décision", "Responsable"], "rows": [["1", "Valider le principe du renouvellement des caméras.", "Awa Koné"]], "widths": [0.08, 0.67, 0.25], "charts": null}, {"layout": "table", "title": "Plan d'actions", "icon": "action", "headers": ["N°", "Action", "Responsable", "Échéance", "Priorité"], "rows": [["1", "Obtenir un second devis caméras", "Léa Martin", "15/11/2026", "Haute"], ["2", "Cartographier les angles morts", "Marc Dubois", "À définir", "Basse"]], "widths": [0.07, 0.43, 0.2, 0.17, 0.13], "charts": null}, {"layout": "bullets", "title": "Points de vigilance", "paragraph": "", "items": ["Retard de livraison des caméras (délai fournisseur 10 semaines)."]}, {"layout": "bullets", "title": "Recommandations et arbitrages attendus", "paragraph": "", "items": ["Arbitrer le budget sous 2 semaines."]}, {"layout": "bullets", "title": "Questions ouvertes et suite", "paragraph": "", "items": ["Prochaine réunion : Le 2 décembre 2026, même format.", "Faut-il mutualiser avec le site Sud ?"]}], "visual": false}, "deck_visual": {"slides": [{"layout": "cover", "title": "Comité de pilotage sûreté – Site Nord", "subtitle": "Synthèse de réunion", "meta": [["Date", "2026-11-04"], ["Lieu", "Teams"]], "objet": "Faire le point sur les incidents du T3 et arbitrer le budget vidéoprotection 2027."}, {"layout": "kpis", "title": "La réunion en chiffres", "icon": "qualite", "tiles": [{"value": "2", "label": "participants", "icon": "equipe"}, {"value": "1", "label": "décision", "icon": "decision"}, {"value": "2", "label": "actions", "icon": "action"}, {"value": "1", "label": "point de vigilance", "icon": "risque"}], "extra": [], "highlight": "Le comité a constaté une baisse de 18 % des incidents au T3. Le renouvellement des caméras du site Nord a été validé sous réserve d'un second devis."}, {"layout": "cards", "title": "L'essentiel", "icon": "idee", "tone": "primary", "items": [{"title": "Bilan des incidents T3", "detail": "Awa Koné a présenté une baisse de 18 % des incidents.", "icon": "securite", "chip": ""}, {"title": "Budget vidéoprotection", "detail": "Le budget de 120 k€ a été examiné.", "icon": "budget", "chip": ""}]}, {"layout": "people", "title": "Participants", "icon": "equipe", "people": [{"nom": "Awa Koné", "fonction": "Directrice sûreté", "statut": "présent"}, {"nom": "Marc Dubois", "fonction": "DSI", "statut": "présent"}, {"nom": "Léa Martin", "fonction": "Achats", "statut": "excusé"}]}, {"layout": "topic", "title": "Bilan des incidents T3", "number": 1, "icon": "securite", "summary": "Awa Koné a présenté une baisse de 18 % des incidents.", "bullets": ["Les intrusions nocturnes restent le principal sujet.", "Le DSI a souligné des angles morts."], "bullets_label": "", "decisions": ["Maintenir le dispositif de rondes renforcé jusqu'à fin décembre."], "notes": "Awa Koné a présenté une baisse de 18 % des incidents. Les intrusions nocturnes restent le principal sujet. Le DSI a souligné des angles morts.\n\nPositions : Le DSI souhaite prioriser l'accès nord. ; Les Achats demandent deux devis."}, {"layout": "topic", "title": "Budget vidéoprotection", "number": 2, "icon": "budget", "summary": "Le budget de 120 k€ a été examiné.", "bullets": ["Un second devis est nécessaire avant engagement."], "bullets_label": "", "decisions": [], "notes": "Le budget de 120 k€ a été examiné. Un second devis est nécessaire avant engagement."}, {"layout": "cards", "title": "Décisions prises", "icon": "decision", "tone": "green", "items": [{"title": "Valider le principe du renouvellement des caméras.", "detail": "", "icon": "decision", "chip": "Resp. : Awa Koné"}]}, {"layout": "table", "title": "Plan d'actions", "icon": "action", "headers": ["N°", "Action", "Responsable", "Échéance", "Priorité"], "rows": [["1", "Obtenir un second devis caméras", "Léa Martin", "15/11/2026", "Haute"], ["2", "Cartographier les angles morts", "Marc Dubois", "À définir", "Basse"]], "widths": [0.07, 0.43, 0.2, 0.17, 0.13], "charts": {"priorities": {"haute": 1, "moyenne": 0, "basse": 1}, "owners": [["Léa Martin", 1], ["Marc Dubois", 1]]}}, {"layout": "timeline", "title": "Prochaines étapes", "icon": "jalon", "steps": [{"label": "Obtenir un second devis caméras", "when": "15/11/2026", "who": "Léa Martin", "tone": "red"}, {"label": "Cartographier les angles morts", "when": "À définir", "who": "Marc Dubois", "tone": "green"}]}, {"layout": "cards", "title": "Points de vigilance", "icon": "risque", "tone": "red", "items": [{"title": "Retard de livraison des caméras (délai fournisseur 10 semaines).", "detail": "", "icon": "risque", "chip": ""}]}, {"layout": "cards", "title": "Enjeux et recommandations", "icon": "idee", "tone": "primary", "items": [{"title": "Réduire les intrusions nocturnes", "detail": "", "icon": "idee", "chip": "Enjeu"}, {"title": "Tenir l'enveloppe budgétaire", "detail": "", "icon": "idee", "chip": "Enjeu"}, {"title": "Arbitrer le budget sous 2 semaines.", "detail": "", "icon": "jalon", "chip": "Recommandation"}]}, {"layout": "cards", "title": "Suite et questions ouvertes", "icon": "question", "tone": "purple", "items": [{"title": "Prochaine réunion", "detail": "Le 2 décembre 2026, même format.", "icon": "planning", "chip": ""}, {"title": "Faut-il mutualiser avec le site Sud ?", "detail": "", "icon": "question", "chip": "À clarifier"}]}], "visual": true}, "note": [{"t": "title", "text": "NOTE DE SYNTHÈSE"}, {"t": "subtitle", "text": "Comité de pilotage sûreté – Site Nord"}, {"t": "meta", "rows": [["Objet", "Faire le point sur les incidents du T3 et arbitrer le budget vidéoprotection 2027."], ["Date", "2026-11-04"], ["Lieu / outil", "Teams"]]}, {"t": "h", "text": "Synthèse"}, {"t": "p", "text": "Le comité a constaté une baisse de 18 % des incidents au T3. Le renouvellement des caméras du site Nord a été validé sous réserve d'un second devis."}, {"t": "h", "text": "Enjeux"}, {"t": "bullets", "items": ["Réduire les intrusions nocturnes", "Tenir l'enveloppe budgétaire"]}, {"t": "h", "text": "Points clés"}, {"t": "bullets", "items": ["Bilan des incidents T3 — Awa Koné a présenté une baisse de 18 % des incidents.", "Budget vidéoprotection — Le budget de 120 k€ a été examiné."]}, {"t": "h", "text": "Décisions prises"}, {"t": "bullets", "items": ["Valider le principe du renouvellement des caméras. (Awa Koné)"]}, {"t": "h", "text": "Risques et points de vigilance"}, {"t": "bullets", "items": ["Retard de livraison des caméras (délai fournisseur 10 semaines)."]}, {"t": "h", "text": "Actions prioritaires"}, {"t": "table", "name": "Actions", "headers": ["N°", "Action", "Responsable", "Échéance", "Priorité"], "widths": [0.07, 0.43, 0.2, 0.17, 0.13], "rows": [["1", "Obtenir un second devis caméras", "Léa Martin", "15/11/2026", "Haute"], ["2", "Cartographier les angles morts", "Marc Dubois", "À définir", "Basse"]]}, {"t": "h", "text": "Recommandations / arbitrages attendus"}, {"t": "bullets", "items": ["Arbitrer le budget sous 2 semaines."]}, {"t": "h", "text": "Questions ouvertes"}, {"t": "bullets", "items": ["Faut-il mutualiser avec le site Sud ?"]}]}};
+  const realFetch = window.fetch.bind(window);
+  const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { "Content-Type": "application/json" } });
+  const born = {};                                            // réunions « créées » pendant la démo : traitement simulé de 4 s
+  const rid = () => Array.from({ length: 12 }, () => "0123456789abcdef"[Math.floor(Math.random() * 16)]).join("");
+  const meeting = (id) => {
+    const m = JSON.parse(JSON.stringify(DATA.meeting)); m.id = id;
+    const t = born[id];
+    if (t) { const age = Date.now() - t.at; m.title = t.title || m.title;
+      if (age < 2000) { m.status = "processing"; m.progress = "Transcription…"; m.analysis = null; }
+      else if (age < 4500) { m.status = "analyzing"; m.progress = "Rédaction du compte rendu…"; m.analysis = null; } }
+    return m;
+  };
+  window.fetch = async (url, opts = {}) => {
+    const u = typeof url === "string" ? url : url.url;
+    if (!u.startsWith("/api")) return realFetch(url, opts);
+    const method = (opts.method || "GET").toUpperCase(), path = u.slice(4).split("?")[0];
+    let m;
+    if (method === "GET" && path === "/config") return json(DATA.config);
+    if (method === "GET" && path === "/meetings") return json([...Object.keys(born).map((id) => ({ ...DATA.list[0], id, title: born[id].title || DATA.list[0].title })), ...DATA.list]);
+    if (method === "GET" && (m = path.match(/^\/meetings\/(\w+)$/))) return json(meeting(m[1]));
+    if (method === "GET" && /^\/meetings\/\w+\/attachments$/.test(path)) return json(DATA.attachments);
+    if (method === "GET" && (m = path.match(/^\/meetings\/\w+\/preview\/(\w+)$/))) return DATA.previews[m[1]] ? json(DATA.previews[m[1]]) : json({ detail: "Aperçu indisponible dans la démo" }, 404);
+    if (method === "GET" && path === "/branding") return json(DATA.branding);
+    if (method === "PUT" && path === "/branding") { Object.assign(DATA.branding, JSON.parse(opts.body)); return json(DATA.branding); }
+    if (method === "POST" && /^\/meetings\/(text|url|audio)$/.test(path)) { const id = rid(); born[id] = { at: Date.now() }; return json({ id }); }
+    if (method === "POST" && path === "/attachments") {
+      const files = opts.body.getAll("files");
+      return json({ attachments: files.map((f) => ({ id: rid(), name: f.name, kind: /\.(msg|eml)$/i.test(f.name) ? "mail" : /xls|csv/i.test(f.name) ? "sheet" : "doc", label: "Pièce jointe (exemple)", size: f.size, snippet: "" })), errors: [] });
+    }
+    if (method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE") return json({ ok: true });
+    return json({});
+  };
+
+  // Faux enregistreur natif : même contrat que l'application Android (voir NativeBridge.kt), sans micro.
+  let st = { state: "idle", t: 0, acc: 0, id: null };
+  window.GMeetingNative = {
+    isAvailable: () => true, version: () => "démo", hasMicPermission: () => true, requestPermissions: () => {},
+    start: (meta) => { const id = rid(); st = { state: "recording", t: Date.now(), acc: 0, id }; born[id] = { at: 0, title: (JSON.parse(meta || "{}").title) || "Réunion enregistrée (démo)" }; return id; },
+    pause: () => { st.acc += (Date.now() - st.t) / 1000; st.state = "paused"; },
+    resume: () => { st.t = Date.now(); st.state = "recording"; },
+    mark: () => {}, cancel: () => { st = { state: "idle" }; },
+    finish: () => { if (born[st.id]) born[st.id].at = Date.now(); st = { state: "idle" }; },
+    state: () => { const el = st.state === "recording" ? st.acc + (Date.now() - st.t) / 1000 : st.acc || 0;
+      return JSON.stringify({ state: st.state, elapsed: Math.round(el), level: st.state === "recording" ? 0.15 + Math.random() * 0.5 : 0, id: st.id || null, error: null }); },
+  };
+
+  // Les téléchargements (PDF, Word…) n'existent pas dans la démo.
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest && e.target.closest("a[download], a[href^='/api/']");
+    if (!a) return;
+    e.preventDefault(); const t = document.getElementById("toast"); t.textContent = "Démo : les exports PDF, Word, Excel et PowerPoint sont disponibles avec votre serveur."; t.hidden = false; setTimeout(() => (t.hidden = true), 4000);
+  }, true);
+})();
+</script>
+<script>"use strict";
+/* GMeeting – enregistreur continu.
+ *
+ * Objectifs : ne jamais perdre l'audio d'une réunion et reprendre seul après un appel téléphonique.
+ *  - Chaque segment audio (~4 s) est d'abord écrit sur l'appareil (IndexedDB), puis envoyé au serveur ;
+ *    il n'est effacé localement qu'une fois acquitté → coupure réseau ou fermeture de l'onglet sans perte.
+ *  - Un AudioContext + une destination persistent : le micro peut être remplacé à chaud (retour d'appel)
+ *    sans interrompre le MediaRecorder.
+ *  - Surveillance : micro muet/coupé, enregistreur arrêté, contexte audio suspendu, retour au premier plan,
+ *    retour du réseau. Si le navigateur exige un geste pour rouvrir le micro : état « needs-tap ».
+ */
+const GRec = (() => {
+  const CH = "chunks", SES = "sessions", CHUNK_MS = 4000;
+  /** Profils de capture : mono + débit Opus plafonné (le navigateur choisirait ≈ 128 kbps stéréo, soit ≈ 37 Mo/h).
+   *  Tailles = plafond théorique (débit × durée) ; mesuré, la voix reste en général en dessous. */
+  const PROFILES = {
+    eco: { label: "Économique", kbps: 24, note: "≈ 11 Mo/h max — réunions calmes, stockage limité (mode avion long)" },
+    equilibre: { label: "Équilibré (recommandé)", kbps: 32, note: "≈ 14 Mo/h max — voix claire, taille réduite" },
+    haute: { label: "Haute qualité", kbps: 64, note: "≈ 29 Mo/h max — salle bruyante ou vaste, plusieurs voix éloignées" },
+  };
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  /* ---------------------------------------------------------------- stockage local (repli mémoire) */
+  const mem = { [CH]: new Map(), [SES]: new Map() };
+  let dbp = null;
+  function db() {
+    if (dbp) return dbp;
+    dbp = new Promise((res) => {
+      try {
+        const r = indexedDB.open("gmeeting", 1);
+        r.onupgradeneeded = () => { r.result.createObjectStore(CH, { keyPath: "key" }); r.result.createObjectStore(SES, { keyPath: "id" }); };
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => res(null);
+      } catch { res(null); }
+    });
+    return dbp;
+  }
+  const req = (r) => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+  const store = {
+    async put(name, obj) {
+      const d = await db(); const key = obj.key ?? obj.id;
+      if (!d) return void mem[name].set(key, obj);
+      try { await req(d.transaction(name, "readwrite").objectStore(name).put(obj)); }
+      catch { mem[name].set(key, obj); }  // quota ou mode privé : on garde en mémoire plutôt que de perdre
+    },
+    async get(name, key) {
+      const d = await db();
+      if (mem[name].has(key)) return mem[name].get(key);
+      return d ? req(d.transaction(name).objectStore(name).get(key)) : undefined;
+    },
+    async del(name, key) {
+      mem[name].delete(key); const d = await db();
+      if (d) try { await req(d.transaction(name, "readwrite").objectStore(name).delete(key)); } catch {}
+    },
+    async all(name) {
+      const d = await db(); const out = new Map(mem[name]);
+      if (d) for (const o of await req(d.transaction(name).objectStore(name).getAll())) out.set(o.key ?? o.id, o);
+      return [...out.values()];
+    },
+    async chunksOf(id) { return (await store.all(CH)).filter((c) => c.id === id).sort((a, b) => (a.key < b.key ? -1 : 1)); },
+  };
+  const ckey = (id, part, seq) => `${id}:${String(part).padStart(3, "0")}:${String(seq).padStart(6, "0")}`;
+
+  /* ---------------------------------------------------------------- envoi (reprenable) */
+  const flushing = new Map(), retrying = new Map();
+  const listeners = new Set();
+  const notify = (id) => listeners.forEach((f) => f(id));
+
+  /** Identifiant généré sur l'appareil : permet de démarrer sans réseau (mode avion). */
+  const genId = () => [...crypto.getRandomValues(new Uint8Array(6))].map((b) => b.toString(16).padStart(2, "0")).join("");
+
+  /** Déclare la session au serveur. 'offline' = injoignable (réseau coupé / erreur serveur) → on réessaiera plus tard. */
+  async function register(id, meta, startedAt) {
+    let r;
+    try { r = await fetch("/api/recordings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...meta, id, started_at: startedAt }) }); }
+    catch { return "offline"; }
+    if (r.status >= 500) return "offline";
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || "HTTP " + r.status);
+    return "ok";
+  }
+  /** Idempotent. Les sessions créées hors-ligne sont déclarées ici, au premier envoi possible. */
+  async function ensureRegistered(id) {
+    const ses = await store.get(SES, id);
+    if (!ses || ses.registered) return;
+    if ((await register(id, ses.meta || {}, ses.startedAt)) !== "ok") throw new Error("serveur injoignable");
+    await store.put(SES, { ...(await store.get(SES, id)), registered: true });
+  }
+
+  function flush(id) {
+    if (flushing.has(id)) return flushing.get(id);
+    const p = (async () => {
+      await ensureRegistered(id);
+      for (;;) {
+        const chunks = await store.chunksOf(id);
+        if (!chunks.length) return;
+        for (const c of chunks) {
+          const r = await fetch(`/api/recordings/${id}/parts/${c.part}/chunks/${c.seq}`, {
+            method: "PUT", body: c.blob, headers: { "Content-Type": "application/octet-stream" } });
+          // 409/404 : la réunion est déjà finalisée ou supprimée → inutile de renvoyer
+          if (!r.ok && r.status !== 409 && r.status !== 404) throw new Error("HTTP " + r.status);
+          await store.del(CH, c.key); notify(id);
+        }
+      }
+    })().finally(() => flushing.delete(id));
+    flushing.set(id, p);
+    return p;
+  }
+  function scheduleFlush(id, attempt = 0) {
+    if (retrying.has(id)) return;
+    flush(id).then(() => notify(id)).catch(() => {
+      notify(id);
+      retrying.set(id, setTimeout(() => { retrying.delete(id); scheduleFlush(id, attempt + 1); }, Math.min(2000 * 2 ** attempt, 30000)));
+    });
+  }
+  window.addEventListener("online", () => { retrying.forEach((t, id) => { clearTimeout(t); retrying.delete(id); scheduleFlush(id); }); resumePending(); });
+
+  async function pendingCount(id) { return (await store.chunksOf(id)).length; }
+
+  /* ---------------------------------------------------------------- finalisation */
+  async function requestFinish(id, payload) {
+    const ses = (await store.get(SES, id)) || { id };
+    await store.put(SES, { ...ses, id, finishRequested: true, payload });
+    try { return await completeFinish(id); }
+    catch (e) { scheduleFinish(id); throw e; }   // réseau/serveur indisponible : on réessaie seul, avec délai croissant
+  }
+  const finRetry = new Map();
+  function scheduleFinish(id, attempt = 0) {
+    if (finRetry.has(id)) return;
+    finRetry.set(id, setTimeout(() => { finRetry.delete(id); completeFinish(id).catch(() => scheduleFinish(id, attempt + 1)); }, Math.min(3000 * 2 ** attempt, 60000)));
+  }
+  /** Envoie les derniers segments puis déclenche la rédaction. Lève une erreur si le réseau est absent (reprise ultérieure). */
+  async function completeFinish(id) {
+    const ses = await store.get(SES, id);
+    if (!ses || !ses.finishRequested) return false;
+    await flush(id);
+    const r = await fetch(`/api/recordings/${id}/finish`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ses.payload || {}) });
+    if (!r.ok && r.status !== 409) throw new Error((await r.json().catch(() => ({}))).detail || "HTTP " + r.status);
+    await store.del(SES, id);
+    return true;
+  }
+  /** Au retour du réseau / au démarrage : termine silencieusement les fins d'enregistrement restées en attente. */
+  async function resumePending() {
+    for (const s of await store.all(SES)) if (s.finishRequested) completeFinish(s.id).catch(() => scheduleFinish(s.id));
+  }
+  /** Enregistrements locaux jamais finalisés (page fermée/rechargée en cours de route). */
+  async function orphans(activeId) {
+    const out = [];
+    for (const s of await store.all(SES)) {
+      if (s.id === activeId || s.finishRequested) continue;
+      const n = await pendingCount(s.id);
+      out.push({ ...s, pending: n });
+    }
+    return out;
+  }
+  async function discard(id) {
+    for (const c of await store.chunksOf(id)) await store.del(CH, c.key);
+    await store.del(SES, id);
+  }
+
+  /* ---------------------------------------------------------------- session d'enregistrement */
+  class Session {
+    constructor({ onState = () => {}, onLevel = () => {}, onEvent = () => {} } = {}) {
+      Object.assign(this, { onState, onLevel, onEvent });
+      this.state = "idle"; this.intended = "idle"; this.part = -1; this.seq = 0;
+      this.markers = []; this.events = []; this.openInt = null; this.acc = 0; this.t0 = 0;
+      this.saving = Promise.resolve(); this.lastChunk = 0;
+    }
+    static supported() { return !!(navigator.mediaDevices && window.MediaRecorder && window.AudioContext); }
+
+    elapsed() { return this.acc + (this.intended === "recording" && this.t0 ? (Date.now() - this.t0) / 1000 : 0); }
+    setState(s) { if (this.state !== s) { this.state = s; this.onState(s); } }
+
+    async start(meta, withTab, profile = "equilibre") {
+      if (!Session.supported()) throw new Error("Enregistrement non supporté par ce navigateur.");
+      this.id = genId(); this.meta = meta; this.startedAt = new Date().toISOString();
+      this.profile = PROFILES[profile] ? profile : "equilibre";
+      this.ctx = new AudioContext();
+      this.dest = this.ctx.createMediaStreamDestination();
+      this.dest.channelCount = 1;                 // mono : la parole n'a pas besoin de stéréo, et c'est deux fois moins de données
+      this.dest.channelCountMode = "explicit";
+      this.analyser = this.ctx.createAnalyser(); this.analyser.fftSize = 512;
+      this.ctx.onstatechange = () => this.check();
+      try {
+        await this.attachMic();
+        if (withTab) await this.attachTab();
+        // Réseau absent (mode avion) : on démarre quand même ; la déclaration au serveur sera faite plus tard.
+        this.registered = (await register(this.id, meta, this.startedAt)) === "ok";
+      } catch (e) { this.teardown(); throw e; }
+      this.storageCheck();
+      this.intended = "recording"; this.t0 = Date.now();
+      await this.persist();   // la session doit exister localement avant le premier segment (sinon l'envoi ne saurait pas la déclarer)
+      this.startPart();
+      this.wakeLock();
+      this._vis = () => { this.wakeLock(); this.check(); };
+      document.addEventListener("visibilitychange", this._vis);
+      window.addEventListener("online", this._vis);
+      this.watchdog = setInterval(() => this.check(), 3000);
+      this.levels();
+      this.setState("recording");
+      return this.id;
+    }
+
+    /* --- sources audio */
+    async attachMic() {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
+      const track = stream.getAudioTracks()[0];
+      track.addEventListener("mute", () => this.beginInt("appel ou micro occupé"));
+      track.addEventListener("unmute", () => this.endInt());
+      track.addEventListener("ended", () => { this.beginInt("micro coupé"); this.recover(); });
+      this.micNode?.disconnect(); this.micStream?.getTracks().forEach((t) => t.stop());
+      this.micStream = stream; this.micTrack = track;
+      this.micNode = this.ctx.createMediaStreamSource(stream);
+      this.micNode.connect(this.dest); this.micNode.connect(this.analyser);
+    }
+    async attachTab() {
+      const disp = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+      if (!disp.getAudioTracks().length) {
+        disp.getTracks().forEach((t) => t.stop());
+        throw new Error("Aucun son partagé. Dans la fenêtre de partage, choisissez un onglet (Chrome/Edge) et cochez « Partager l'audio de l'onglet ».");
+      }
+      this.dispStream = disp;
+      const node = this.ctx.createMediaStreamSource(new MediaStream(disp.getAudioTracks()));
+      node.connect(this.dest); node.connect(this.analyser);
+      // Fin du partage ≠ fin de la réunion : on continue avec le micro seul.
+      disp.getVideoTracks()[0].addEventListener("ended", () => { this.logEvent("Partage de l'onglet arrêté : enregistrement poursuivi avec le micro seul"); });
+    }
+
+    /* --- MediaRecorder par « parties » */
+    startPart() {
+      if (this.intended === "stopped") return;
+      const mime = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"].find((t) => MediaRecorder.isTypeSupported(t));
+      // AAC (Safari) devient médiocre sous 32 kbps : plancher à 32 pour ce codec ; Opus tient très bien 24 kbps en voix.
+      const kbps = Math.max(PROFILES[this.profile].kbps, (mime || "").includes("mp4") ? 32 : 0);
+      const rec = new MediaRecorder(this.dest.stream, { ...(mime ? { mimeType: mime } : {}), audioBitsPerSecond: kbps * 1000 });
+      const part = ++this.part; let seq = 0;
+      this.rec = rec; this.mime = rec.mimeType || mime || "";
+      rec.ondataavailable = (e) => { if (e.data && e.data.size) this.saveChunk(part, seq++, e.data); };
+      rec.onerror = () => { try { rec.state !== "inactive" && rec.stop(); } catch {} };
+      rec.onstop = () => {
+        if (this.rec !== rec || this.intended === "stopped") return;
+        // arrêt inattendu (le système a coupé l'enregistreur) : nouvelle partie après une courte pause
+        this.logEvent("Enregistreur relancé automatiquement");
+        setTimeout(() => this.startPart(), 800);
+      };
+      rec.start(CHUNK_MS);
+      if (this.intended === "paused") rec.pause();
+    }
+    saveChunk(part, seq, blob) {
+      this.lastChunk = Date.now();
+      this.saving = this.saving.then(() => store.put(CH, { key: ckey(this.id, part, seq), id: this.id, part, seq, blob })).then(() => scheduleFlush(this.id));
+    }
+
+    /* --- interruptions (appel, perte du micro) */
+    beginInt(reason) {
+      if (this.openInt || this.intended === "stopped") return;
+      this.openInt = { at: Math.round(this.elapsed()), t: Date.now(), reason };
+      this.setState("interrupted");
+    }
+    endInt() {
+      if (!this.openInt) return;
+      const i = this.openInt; this.openInt = null;
+      this.events.push({ at: i.at, duration: Math.round((Date.now() - i.t) / 1000), reason: i.reason });
+      this.persist();
+      if (this.intended !== "stopped") this.setState(this.intended === "paused" ? "paused" : "recording");
+      this.onEvent(`Enregistrement repris (interruption de ${Math.round((Date.now() - i.t) / 1000)} s)`);
+    }
+    logEvent(msg) { this.events.push({ at: Math.round(this.elapsed()), reason: msg.slice(0, 60) }); this.onEvent(msg); this.persist(); }
+
+    /** Rouvre le micro après une coupure. Réessaie ; si un geste utilisateur est exigé → état « needs-tap ». */
+    async recover(gesture = false) {
+      if (this.recovering || this.intended === "stopped") return;
+      this.recovering = true;
+      try {
+        for (let i = 0; this.intended !== "stopped"; i++) {
+          if (document.visibilityState === "hidden" && !gesture) { this.recovering = false; return; } // reprendra au retour au premier plan
+          try { await this.attachMic(); this.endInt(); if (this.rec?.state === "inactive") this.startPart(); return; }
+          catch (e) {
+            if (e.name === "NotAllowedError" && !gesture) { this.setState("needs-tap"); return; }
+            await sleep(Math.min(1500 * (i + 1), 8000));
+          }
+        }
+      } finally { this.recovering = false; }
+    }
+
+    /** Surveillance périodique et à chaque événement système. */
+    check() {
+      if (this.intended === "idle" || this.intended === "stopped") return;
+      if (this.ctx && this.ctx.state !== "running") this.ctx.resume().catch(() => {});
+      const t = this.micTrack;
+      if (t?.readyState === "ended") { if (this.state !== "needs-tap") { this.beginInt("micro coupé"); this.recover(); } }
+      else if (this.openInt && t && t.readyState === "live" && !t.muted && !this.recovering) this.endInt(); // « unmute » manqué
+      if (this.intended === "recording") {
+        if (this.rec && this.rec.state === "inactive") this.startPart();
+        // enregistreur « vivant » mais muet depuis trop longtemps → relance
+        else if (this.lastChunk && Date.now() - this.lastChunk > CHUNK_MS * 4 && this.rec?.state === "recording") { try { this.rec.stop(); } catch {} }
+      }
+      this.onEvent(null);
+    }
+
+    async wakeLock() {
+      try { if (document.visibilityState === "visible" && (!this.wake || this.wake.released)) this.wake = await navigator.wakeLock?.request("screen"); } catch {}
+    }
+    levels() {
+      const buf = new Uint8Array(this.analyser.frequencyBinCount);
+      const loop = () => {
+        if (this.intended === "stopped") return;
+        this.analyser.getByteTimeDomainData(buf); let p = 0; for (const v of buf) p = Math.max(p, Math.abs(v - 128));
+        this.onLevel(p / 128); this.raf = requestAnimationFrame(loop);
+      };
+      loop();
+    }
+
+    /* --- commandes */
+    pause() { if (this.intended !== "recording") return; this.acc = this.elapsed(); this.intended = "paused"; this.t0 = 0; try { this.rec.pause(); } catch {} this.setState("paused"); }
+    resume() { if (this.intended !== "paused") return; this.intended = "recording"; this.t0 = Date.now(); try { this.rec.resume(); } catch {} this.setState(this.openInt ? "interrupted" : "recording"); }
+    mark() { this.markers.push(Math.round(this.elapsed())); this.persist(); return this.markers.length; }
+    async persist() {
+      const cur = (await store.get(SES, this.id)) || {};
+      await store.put(SES, { registered: !!this.registered, ...cur, id: this.id, meta: this.meta, markers: this.markers, events: this.events, startedAt: this.startedAt,
+        payload: { meta: this.meta, markers: this.markers, interruptions: this.events } });
+    }
+    /** Hors-ligne tout l'audio vit sur l'appareil : on demande un stockage durable et on prévient s'il est trop juste. */
+    async storageCheck() {
+      try {
+        await navigator.storage?.persist?.();
+        const e = await navigator.storage?.estimate?.();
+        if (e?.quota && e.quota - e.usage < 300 * 1024 * 1024) this.onEvent("⚠ Espace de stockage faible sur l'appareil : libérez de la place ou rétablissez le réseau pour envoyer l'audio");
+      } catch {}
+    }
+
+    /** Arrête, vide les derniers segments et lance le traitement. Lève une erreur si le réseau manque (le reste est repris plus tard). */
+    async finish(metaUpdate = {}, extra = {}) {
+      if (this.openInt) this.endInt();
+      this.intended = "stopped"; this.acc = this.elapsed();
+      clearInterval(this.watchdog);
+      document.removeEventListener("visibilitychange", this._vis); window.removeEventListener("online", this._vis);
+      await new Promise((res) => { const rec = this.rec; if (!rec || rec.state === "inactive") return res(); const prev = rec.onstop; rec.onstop = () => { res(); }; try { rec.stop(); } catch { res(); } });
+      await this.saving;
+      this.teardown();
+      this.setState("stopped");
+      const payload = { meta: { ...this.meta, ...Object.fromEntries(Object.entries(metaUpdate).filter(([, v]) => v)) }, markers: this.markers, interruptions: this.events,
+        attachment_ids: extra.attachment_ids || [] };   // pièces jointes déposées sur le serveur, rattachées à la réunion à la finalisation
+      return requestFinish(this.id, payload);
+    }
+    /** Abandon : supprime tout (local + serveur). */
+    async cancel() {
+      this.intended = "stopped"; clearInterval(this.watchdog);
+      try { this.rec?.state !== "inactive" && this.rec.stop(); } catch {}
+      this.teardown(); await this.saving; await discard(this.id);
+      fetch("/api/meetings/" + this.id, { method: "DELETE" }).catch(() => {});
+      this.setState("stopped");
+    }
+    teardown() {
+      cancelAnimationFrame(this.raf); clearInterval(this.watchdog);
+      this.micStream?.getTracks().forEach((t) => t.stop());
+      this.dispStream?.getTracks().forEach((t) => t.stop());
+      this.ctx?.close().catch(() => {}); this.wake?.release?.().catch?.(() => {});
+    }
+    get active() { return this.intended === "recording" || this.intended === "paused"; }
+  }
+
+  /* ---------------------------------------------------------------- enregistreur NATIF (application Android)
+     Même interface que Session : l'enregistrement est assuré par un service Android (écran verrouillé, appel, mode avion),
+     la page ne fait que le piloter. */
+  const NATIVE = () => { try { return window.GMeetingNative && window.GMeetingNative.isAvailable() ? window.GMeetingNative : null; } catch { return null; } };
+  class NativeSession {
+    constructor({ onState = () => {}, onLevel = () => {}, onEvent = () => {} } = {}) {
+      Object.assign(this, { onState, onLevel, onEvent });
+      this.state = "idle"; this.intended = "idle"; this.markCount = 0; this.sec = 0; this.id = null; this.n = NATIVE();
+    }
+    static supported() { return !!NATIVE(); }
+    static adopt() {                      // la page a été rechargée alors que l'enregistrement natif continue : on se rebranche dessus
+      const n = NATIVE(); if (!n) return null;
+      let st; try { st = JSON.parse(n.state()); } catch { return null; }
+      if (!st || !["recording", "paused", "interrupted"].includes(st.state)) return null;
+      const s = new NativeSession(); s.id = st.id; s.startPoll(); return s;
+    }
+    elapsed() { return this.sec; }
+    setState(st) { if (this.state !== st) { this.state = st; this.onState(st); } }
+    get active() { return this.intended === "recording" || this.intended === "paused"; }
+
+    async start(meta, withTab, profile = "equilibre") {
+      if (withTab) throw new Error("Le partage d'un onglet n'existe pas dans l'application : utilisez le micro (placez le téléphone près de la source).");
+      const n = this.n;
+      if (!n.hasMicPermission()) {
+        await new Promise((res) => { const f = () => { window.removeEventListener("gmeeting-permissions", f); res(); }; window.addEventListener("gmeeting-permissions", f); n.requestPermissions(); setTimeout(f, 60000); });
+        if (!n.hasMicPermission()) throw new Error("Autorisez le micro pour enregistrer (Réglages Android → Applications → GMeeting → Autorisations).");
+      }
+      this.meta = meta;
+      const id = n.start(JSON.stringify(meta || {}), (PROFILES[profile] || PROFILES.equilibre).kbps);
+      if (!id) throw new Error("Impossible de démarrer l'enregistrement.");
+      this.id = id; this.startPoll();
+      // le service démarre de façon asynchrone : on attend le premier état (ou son erreur)
+      for (let i = 0; i < 20; i++) {
+        await sleep(150); const st = this.poll();
+        if (st && st.state !== "idle") return id;
+        if (st && st.error) break;
+      }
+      this.stopPoll(); this.intended = "stopped";
+      const err = (() => { try { return JSON.parse(n.state()).error; } catch { return ""; } })();
+      throw new Error(err || "Micro indisponible : un appel ou une autre application l'utilise-t-il ?");
+    }
+    startPoll() { this.intended = "recording"; this.stopPoll(); this.timer = setInterval(() => this.poll(), 400); this.poll(); }
+    stopPoll() { clearInterval(this.timer); }
+    poll() {
+      let st; try { st = JSON.parse(this.n.state()); } catch { return null; }
+      if (!st) return null;
+      if (st.state === "idle") {
+        if (this.intended !== "stopped" && this.state !== "idle") { this.intended = "stopped"; this.setState("stopped"); this.stopPoll(); }   // arrêté depuis la notification
+        return st;
+      }
+      this.sec = st.elapsed || 0; this.onLevel(st.level || 0);
+      this.intended = st.state === "paused" ? "paused" : "recording";
+      this.setState(st.state);
+      return st;
+    }
+    pause() { this.n.pause(); }
+    resume() { this.n.resume(); }
+    mark() { this.n.mark(); return ++this.markCount; }
+    recover() {}
+    async finish(metaUpdate = {}, extra = {}) {
+      this.intended = "stopped"; this.stopPoll();
+      const meta = { ...(this.meta || {}), ...Object.fromEntries(Object.entries(metaUpdate).filter(([, v]) => v)) };
+      this.n.finish(JSON.stringify({ meta, attachment_ids: extra.attachment_ids || [] }));
+      this.setState("stopped");
+      // La réunion n'existe sur le serveur qu'une fois le dernier segment reçu : on attend un peu, sinon l'envoi continue en arrière-plan.
+      for (let i = 0; i < 30; i++) {
+        await sleep(1000);
+        try { const r = await fetch("/api/meetings/" + this.id, { cache: "no-store" }); if (r.ok) return true; } catch {}
+      }
+      throw new Error("pending");
+    }
+    async cancel() { this.intended = "stopped"; this.stopPoll(); this.n.cancel(); this.setState("stopped"); }
+  }
+
+  return { PROFILES, get Session() { return NATIVE() ? NativeSession : Session; }, adoptNative: () => NativeSession.adopt(), orphans, discard, requestFinish, completeFinish, resumePending, flush, pendingCount, onProgress: (f) => (listeners.add(f), () => listeners.delete(f)), store };
+})();
+</script>
+<script>"use strict";
+/* GMeeting – interface (JS natif, sans build). Tout contenu dynamique passe par textContent. */
+
+const $app = document.getElementById("app");
+const DOC_LABELS = { pv: "Procès-verbal", cr: "Compte rendu", note: "Note de synthèse", deck: "Présentation", deck_visual: "Présentation illustrée" };
+const DECK_TYPES = new Set(["deck", "deck_visual"]);
+const EMOJI = { objectif: "🎯", equipe: "👥", planning: "📅", decision: "✅", action: "➡️", risque: "⚠️", idee: "💡", budget: "💶", securite: "🛡️", technique: "⚙️", communication: "💬", juridique: "📄", qualite: "📊", question: "❓", jalon: "🚩", horloge: "🕒" };
+const STATUS = { recording: "Enregistrement", pending: "En attente", queued: "En file", processing: "Traitement", analyzing: "Rédaction", done: "Prêt", error: "Erreur" };
+
+function el(tag, attrs = {}, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") n.className = v;
+    else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+    else if (k.startsWith("aria-")) n.setAttribute(k, String(v));      // ARIA exige "true"/"false", pas un attribut vide
+    else if (v === true) n.setAttribute(k, "");
+    else if (v !== false && v != null) n.setAttribute(k, v);
+  }
+  for (const c of kids.flat()) if (c != null) n.append(c.nodeType ? c : document.createTextNode(c));
+  return n;
+}
+function toast(msg) {
+  const t = document.getElementById("toast"); t.textContent = msg; t.hidden = false;
+  clearTimeout(toast.h); toast.h = setTimeout(() => (t.hidden = true), 5000);
+}
+async function api(path, opts) {
+  const r = await fetch("/api" + path, opts);
+  if (!r.ok) {
+    let d = r.statusText; try { d = (await r.json()).detail || d; } catch {}
+    throw new Error(typeof d === "string" ? d : JSON.stringify(d));
+  }
+  return r.json();
+}
+const fmtDur = (s) => { s = Math.round(s || 0); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60); return (h ? h + " h " : "") + m + " min"; };
+const fmtDate = (iso) => new Date(iso).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" });
+
+let stopPoll = () => {}, stopRecorderCleanup = () => {};
+window.addEventListener("hashchange", route);
+let live = null; // session d'enregistrement active (survit à la navigation entre pages)
+window.addEventListener("beforeunload", (e) => { if (live?.active) { e.preventDefault(); e.returnValue = ""; } });
+
+async function route() {
+  stopPoll(); stopRecorderCleanup();
+  const m = location.hash.match(/^#\/m\/(\w+)/);
+  if (location.hash === "#/brand") await viewBrand();
+  else m ? await viewMeeting(m[1]) : await viewHome();
+}
+
+/* ============================================================ ACCUEIL */
+function metaFields() {
+  const f = (id, label, type = "text", ph = "") => el("div", {}, el("label", { for: id }, label), el("input", { id, type, placeholder: ph }));
+  return el("details", { class: "card-sub" },
+    el("summary", { class: "hint", style: "cursor:pointer;margin:10px 0" }, "Informations et pièces jointes (facultatif, améliore la qualité du rendu)"),
+    el("div", { class: "grid" },
+      f("m-title", "Titre", "text", "Ex. COPIL sûreté site Nord"),
+      f("m-date", "Date", "date"),
+      f("m-loc", "Lieu / outil", "text", "Teams, salle B12…"),
+      el("div", {}, el("label", { for: "m-lang" }, "Langue parlée"),
+        el("select", { id: "m-lang" }, el("option", { value: "" }, "Détection auto"), el("option", { value: "fr" }, "Français"), el("option", { value: "en" }, "Anglais"), el("option", { value: "es" }, "Espagnol"), el("option", { value: "de" }, "Allemand"), el("option", { value: "pt" }, "Portugais"), el("option", { value: "ar" }, "Arabe")))),
+    el("label", { for: "m-part" }, "Participants (nom, fonction – un par ligne)"),
+    el("textarea", { id: "m-part", placeholder: "Awa Koné – Directrice sûreté\nMarc Dubois – DSI" }),
+    el("label", { for: "m-ctx" }, "Contexte / consignes de rédaction"),
+    el("textarea", { id: "m-ctx", placeholder: "Acronymes, enjeux, ton souhaité, destinataires du document…" }),
+    el("label", {}, "Pièces jointes"), attachZone());
+}
+
+/* ---- pièces jointes : e-mails Outlook (.msg/.eml), Word, Excel, PDF, PowerPoint, texte, images ---- */
+const ATT_ACCEPT = ".msg,.eml,.docx,.xlsx,.xlsm,.csv,.pdf,.pptx,.txt,.md,.png,.jpg,.jpeg,.gif,.webp,.doc,.xls,.ppt";
+const KIND_EMOJI = { email: "✉️", word: "📄", excel: "📊", pdf: "📕", powerpoint: "📽️", texte: "📝", image: "🖼️", autre: "📎" };
+const fmtSize = (n) => (n < 1048576 ? Math.max(1, Math.round(n / 1024)) + " Ko" : (n / 1048576).toFixed(1).replace(".", ",") + " Mo");
+let staged = [];                                   // pièces déposées avant la création de la réunion
+const attachmentIds = () => staged.map((a) => a.id);
+
+async function uploadFiles(files, meetingId) {
+  const fd = new FormData(); [...files].forEach((f) => fd.append("files", f)); if (meetingId) fd.append("meeting_id", meetingId);
+  const r = await api("/attachments", { method: "POST", body: fd });
+  (r.errors || []).forEach((e) => toast(e));
+  return r.attachments;
+}
+function attachZone() {
+  const list = el("ul", { class: "att-list" });
+  const input = el("input", { type: "file", multiple: true, accept: ATT_ACCEPT, "aria-label": "Ajouter des pièces jointes" });
+  const draw = () => list.replaceChildren(...staged.map((a) => el("li", {}, el("span", {}, KIND_EMOJI[a.kind] || "📎"),
+    el("span", { class: "an" }, el("b", {}, a.name), el("small", {}, `${a.label} · ${fmtSize(a.size)}${a.snippet ? " — " + a.snippet.slice(0, 90) : ""}`)),
+    el("button", { class: "x", type: "button", "aria-label": "Retirer " + a.name, onclick: async () => { staged = staged.filter((s) => s.id !== a.id); draw(); api("/attachments/" + a.id, { method: "DELETE" }).catch(() => {}); } }, "✕"))));
+  input.onchange = async () => {
+    if (!input.files.length) return;
+    try { staged.push(...(await uploadFiles(input.files))); draw(); } catch (e) { toast(e.message); }
+    input.value = "";
+  };
+  draw();
+  return el("div", {}, input, list, el("p", { class: "hint" }, "Mail Outlook (.msg ou .eml), Word, Excel, PDF, PowerPoint, texte, images. Elles sont lues par l'IA pour mieux rédiger (noms, chiffres, ordre du jour) et insérées en annexe des rapports."));
+}
+const meta = () => ({
+  title: val("m-title"), meeting_date: val("m-date"), location: val("m-loc"),
+  participants: val("m-part"), context: val("m-ctx"), language: val("m-lang"),
+});
+const val = (id) => (document.getElementById(id)?.value || "").trim();
+
+async function submitForm(path, build, btn) {
+  btn && (btn.disabled = true);
+  try {
+    const { id } = await api(path, build());
+    staged = [];
+    location.hash = "#/m/" + id;
+  } catch (e) { toast(e.message); btn && (btn.disabled = false); }
+}
+
+async function viewHome() {
+  // Partage Android : les pièces ont déjà été déposées sur le serveur (zone d'attente) ; on les rattache au prochain compte rendu.
+  const pj = location.hash.match(/^#\/\?pj=([0-9a-f,]{1,300})$/);
+  if (pj) {
+    for (const id of pj[1].split(",").filter(Boolean)) if (!staged.some((s) => s.id === id)) staged.push({ id, name: "Pièce partagée", kind: "", label: "Partagée depuis une autre application", size: 0 });
+    history.replaceState(null, "", "#/");
+  }
+  const tabsDef = [["rec", "🎙 Enregistrer"], ["url", "🔗 Lien vidéo"], ["file", "📁 Fichier"], ["txt", "📝 Texte"]];
+  const panel = el("div");
+  const tabs = el("div", { class: "tabs", role: "tablist" });
+  const show = (k) => {
+    tabs.querySelectorAll(".tab").forEach((b) => b.setAttribute("aria-selected", b.dataset.k === k));
+    stopRecorderCleanup(); panel.replaceChildren(panels[k]());
+  };
+  const panels = { rec: recPanel, url: urlPanel, file: filePanel, txt: textPanel };
+  tabsDef.forEach(([k, l]) => tabs.append(el("button", { class: "tab", role: "tab", "data-k": k, onclick: () => show(k) }, l)));
+
+  const list = el("ul", { class: "list" });
+  $app.replaceChildren(
+    el("h1", {}, "Nouvelle réunion"),
+    el("div", { class: "card" }, tabs, panel, metaFields()),
+    el("div", { class: "card" }, el("h2", {}, "Mes réunions"), list));
+  show("rec");
+  orphanBanner();
+  try {
+    const all = await api("/meetings");
+    list.replaceChildren(...(all.length ? all.map((m) => el("li", {}, el("a", { href: "#/m/" + m.id },
+      el("span", {}, el("strong", {}, m.title || "Sans titre"), el("br"), el("span", { class: "hint" }, fmtDate(m.created_at) + (m.duration ? " · " + fmtDur(m.duration) : "") + " · " + ({ url: "lien", upload: "fichier", record: "enregistrement", text: "texte" }[m.source_type] || m.source_type))),
+      el("span", { class: "badge " + m.status }, STATUS[m.status] || m.status)))) : [el("li", { class: "empty" }, "Aucune réunion pour l'instant.")]));
+  } catch (e) {
+    list.replaceChildren(el("li", { class: "empty" }, navigator.onLine ? "Liste indisponible : " + e.message : "Hors connexion — la liste des réunions s'affichera au retour du réseau. Vous pouvez néanmoins enregistrer."));
+  }
+  loadConfig();
+}
+
+const STATE_MSG = {
+  interrupted: "⚠ Micro interrompu (appel en cours ?). L'enregistrement reprendra tout seul à la fin de l'appel — gardez cette page ouverte.",
+  paused: "⏸ En pause.",
+  "needs-tap": "Le navigateur demande une confirmation pour rouvrir le micro.",
+};
+
+/** Enregistrements locaux non terminés (page fermée ou rechargée en cours de réunion) : on propose de les récupérer. */
+async function orphanBanner() {
+  const items = await GRec.orphans(live?.id);
+  const card = $app.querySelector(".card");
+  for (const o of items.reverse()) {
+    const box = el("div", { class: "alert", role: "alert" });
+    const go = el("button", { class: "btn" }, "Récupérer et générer les documents");
+    go.onclick = async () => {
+      go.disabled = true;
+      try { await GRec.requestFinish(o.id, o.payload); location.hash = "#/m/" + o.id; route(); }
+      catch (e) { toast("Envoi impossible pour l'instant (" + e.message + "). Réessayez avec une connexion."); go.disabled = false; }
+    };
+    const drop = el("button", { class: "btn danger" }, "Supprimer");
+    drop.onclick = async () => { if (!confirm("Supprimer définitivement cet enregistrement ?")) return; await GRec.discard(o.id); fetch("/api/meetings/" + o.id, { method: "DELETE" }).catch(() => {}); box.remove(); };
+    box.append(el("strong", {}, "⚠ Un enregistrement n'a pas été terminé"), el("br"),
+      `« ${o.meta?.title || "Sans titre"} », démarré le ${fmtDate(o.startedAt)}. ` +
+      (o.pending ? `${o.pending} segment(s) audio sont conservés sur cet appareil et n'ont pas encore été envoyés. ` : "Tout l'audio a été envoyé. "),
+      el("div", { class: "row", style: "margin-top:10px" }, go, drop));
+    card.before(box);
+  }
+}
+
+/** Conseil « mode avion » : l'interface doit avoir été chargée une fois en ligne pour pouvoir s'ouvrir sans réseau. */
+function offlineTip() {
+  const ready = !!navigator.serviceWorker?.controller;
+  return el("p", { class: "hint", style: "max-width:520px;margin:8px auto" },
+    el("strong", {}, "✈ Mode avion : "), "vous pouvez enregistrer sans aucun réseau, donc sans appel qui coupe le micro. ",
+    ready ? "L'application est prête pour l'usage hors-ligne. Activez le mode avion (vous pouvez ensuite rallumer le Wi-Fi seul si besoin) puis lancez l'enregistrement ; l'envoi se fera au retour du réseau."
+      : "Pour cela, rechargez cette page une fois en ligne (installation hors-ligne en cours), puis installez l'application sur l'écran d'accueil si possible.");
+}
+
+function recPanel() {
+  const timer = el("div", { class: "timer", "aria-live": "off" }, "00:00:00");
+  const meter = el("div", { class: "meter" }, el("i"));
+  const btn = el("button", { class: "rec-btn", "aria-label": "Démarrer l'enregistrement" }, "REC");
+  const pauseBtn = el("button", { class: "btn sec", hidden: true }, "⏸ Pause");
+  const markBtn = el("button", { class: "btn sec", hidden: true, title: "Repérer un moment important" }, "⭐ Marquer");
+  const stopBtn = el("button", { class: "btn", hidden: true }, "⏹ Terminer et générer");
+  const tapBtn = el("button", { class: "btn", hidden: true, style: "background:var(--rec);border-color:var(--rec)" }, "🎙 Reprendre l'enregistrement");
+  const banner = el("div", { class: "rec-banner", role: "status", hidden: true });
+  const net = el("p", { class: "hint", role: "status" });
+  const log = el("ul", { class: "hint", style: "list-style:none;padding:0;margin:6px 0" });
+  const savedQ = (() => { try { return localStorage.getItem("gm_audio_profile"); } catch { return null; } })();
+  const quality = el("select", { id: "rec-quality", "aria-label": "Qualité audio", title: "Compromis qualité / taille de l'enregistrement" },
+    ...Object.entries(GRec.PROFILES).map(([k, p]) => el("option", { value: k, selected: k === (GRec.PROFILES[savedQ] ? savedQ : "equilibre") }, `Audio : ${p.label}`)));
+  const qualityNote = el("p", { class: "hint", style: "margin:2px 0 0" });
+  const showQ = () => { qualityNote.textContent = GRec.PROFILES[quality.value].note + " · mono, voix optimisée"; try { localStorage.setItem("gm_audio_profile", quality.value); } catch {} };
+  quality.onchange = showQ; showQ();
+  const mode = el("select", { id: "rec-mode", "aria-label": "Source audio" },
+    el("option", { value: "mic" }, "Micro seul (présentiel, téléphone)"),
+    el("option", { value: "tab" }, "Micro + audio de l'onglet (visio web)"));
+  let iv = 0, unsub = () => {};
+
+  const ui = (running) => {
+    btn.hidden = running; pauseBtn.hidden = markBtn.hidden = stopBtn.hidden = !running; mode.disabled = quality.disabled = running;
+    btn.classList.toggle("live", running);
+    if (!running) { meter.firstChild.style.width = "0"; banner.hidden = true; tapBtn.hidden = true; }
+  };
+  const say = (msg) => { if (!msg) return; const t = new Date().toLocaleTimeString("fr-FR"); log.append(el("li", {}, `${t} — ${msg}`)); };
+  const showState = (st) => {
+    banner.hidden = !STATE_MSG[st]; banner.textContent = STATE_MSG[st] || ""; banner.className = "rec-banner " + st;
+    tapBtn.hidden = st !== "needs-tap";
+    pauseBtn.textContent = st === "paused" ? "▶ Reprendre" : "⏸ Pause";
+    if (st === "interrupted") say("Interruption du micro");
+  };
+  const showNet = async () => {
+    if (!live) return; const n = await GRec.pendingCount(live.id);
+    net.textContent = !navigator.onLine ? `✈ Hors connexion (mode avion ?) — l'enregistrement se poursuit normalement. L'audio est conservé sur cet appareil et sera envoyé automatiquement au retour du réseau (${n} segment(s) en attente).`
+      : n > 3 ? `Envoi en cours… ${n} segment(s) en attente.` : "";
+  };
+
+  btn.onclick = async () => {
+    if (!GRec.Session.supported()) return toast("Enregistrement non supporté par ce navigateur.");
+    btn.disabled = true;
+    const s = new GRec.Session({
+      onState: showState,
+      onLevel: (l) => (meter.firstChild.style.width = Math.min(100, l * 140) + "%"),
+      onEvent: (m) => say(m),
+    });
+    try { await s.start(meta(), mode.value === "tab", quality.value); }
+    catch (e) { toast(e.message); btn.disabled = false; return; }
+    live = s; btn.disabled = false; ui(true); log.replaceChildren();
+    iv = setInterval(() => { const sec = s.elapsed(); timer.dataset.s = sec; timer.textContent = new Date(sec * 1000).toISOString().substr(11, 8); showNet(); }, 500);
+    unsub = GRec.onProgress(showNet);
+  };
+  pauseBtn.onclick = () => (live.state === "paused" ? live.resume() : live.pause());
+  markBtn.onclick = () => { const n = live.mark(); say(`⭐ Repère n°${n} à ${timer.textContent}`); toast("Moment marqué ⭐"); };
+  tapBtn.onclick = () => live.recover(true);
+  stopBtn.onclick = async () => {
+    stopBtn.disabled = true; const s = live;
+    try {
+      const done = await s.finish(meta(), { attachment_ids: attachmentIds() });
+      staged = [];
+      live = null; clearInterval(iv); unsub();
+      location.hash = "#/m/" + s.id;
+      if (!done) toast("Enregistrement terminé.");
+    } catch (e) {
+      // réseau absent : tout est conservé localement et sera finalisé automatiquement au retour de la connexion
+      live = null; clearInterval(iv); unsub(); ui(false);
+      toast("Enregistrement terminé. Envoi en attente de connexion : il reprendra automatiquement.");
+      route();
+    }
+  };
+  // revenir sur l'onglet Enregistrer pendant une session en cours : on rebranche l'interface sur la session active
+  if (!live) live = GRec.adoptNative?.() || null;      // application Android : l'enregistrement natif a continué pendant que la page était fermée
+  if (live?.active) {
+    live.onState = showState; live.onLevel = (l) => (meter.firstChild.style.width = Math.min(100, l * 140) + "%"); live.onEvent = say;
+    ui(true); showState(live.state); const s = live;
+    iv = setInterval(() => { const sec = s.elapsed(); timer.textContent = new Date(sec * 1000).toISOString().substr(11, 8); showNet(); }, 500);
+    unsub = GRec.onProgress(showNet);
+  }
+  stopRecorderCleanup = () => { clearInterval(iv); unsub(); }; // la session continue même si l'on change de page
+  return el("div", { class: "rec-box" }, el("div", { class: "row", style: "justify-content:center" }, mode, quality), qualityNote, timer, meter, banner,
+    el("div", { class: "row", style: "justify-content:center;margin:12px 0" }, btn, pauseBtn, markBtn, stopBtn), tapBtn, net, log,
+    ...(window.GMeetingNative ? [el("p", { class: "hint" }, "Enregistrement assuré par l'application : il continue écran verrouillé et pendant un appel, et l'audio non envoyé reste sur le téléphone.")] : [offlineTip(),
+    el("p", { class: "hint" }, "L'audio est écrit sur l'appareil puis envoyé en continu : une coupure réseau, un appel téléphonique ou la fermeture de la page ne font pas perdre l'enregistrement. " +
+      "Gardez la page ouverte et l'écran allumé. L'accès au micro exige HTTPS ou localhost.")]));
+}
+
+function urlPanel() {
+  const input = el("input", { id: "u-url", type: "url", placeholder: "https://… (YouTube, Vimeo, LinkedIn, Loom, lien direct .mp4/.mp3, etc.)", autocomplete: "off" });
+  const subs = el("input", { type: "checkbox", id: "u-subs", checked: true, style: "width:auto" });
+  const go = el("button", { class: "btn" }, "Analyser le lien");
+  go.onclick = () => {
+    const url = input.value.trim(); if (!url) return toast("Collez un lien.");
+    submitForm("/meetings/url", () => ({ method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, prefer_subtitles: subs.checked, attachment_ids: attachmentIds(), ...meta() }) }), go);
+  };
+  return el("div", {}, el("label", { for: "u-url" }, "Lien de la vidéo ou de l'audio"), input,
+    el("label", { style: "display:flex;gap:8px;align-items:center;font-weight:400" }, subs, "Utiliser les sous-titres existants quand ils sont disponibles (plus rapide)"),
+    el("p", { class: "hint" }, "Les liens privés (Teams, Zoom, Drive protégés) ne sont pas accessibles : téléchargez le fichier puis utilisez l'onglet « Fichier »."),
+    el("div", { class: "row" }, go));
+}
+
+function filePanel() {
+  const input = el("input", { id: "f-file", type: "file", accept: "audio/*,video/*,.m4a,.mp3,.wav,.mp4,.webm,.mkv,.mov,.ogg" });
+  const go = el("button", { class: "btn" }, "Transcrire et générer");
+  go.onclick = () => {
+    const f = input.files[0]; if (!f) return toast("Choisissez un fichier.");
+    submitForm("/meetings/audio", () => { const fd = new FormData(); fd.append("file", f); fd.append("source_type", "upload"); fd.append("attachment_ids", attachmentIds().join(",")); for (const [k, v] of Object.entries(meta())) fd.append(k, v); return { method: "POST", body: fd }; }, go);
+  };
+  return el("div", {}, el("label", { for: "f-file" }, "Fichier audio ou vidéo (mp3, m4a, wav, mp4, webm…)"), input,
+    el("p", { class: "hint" }, "Fonctionne avec les enregistrements Plaud, dictaphone, Teams, Zoom, etc."), el("div", { class: "row" }, go));
+}
+
+function textPanel() {
+  const ta = el("textarea", { id: "t-text", style: "min-height:200px", placeholder: "Collez ici une transcription existante (Teams, Zoom, Otter, sous-titres…)" });
+  const go = el("button", { class: "btn" }, "Générer les documents");
+  go.onclick = () => { const text = ta.value.trim(); if (!text) return toast("Collez un texte."); submitForm("/meetings/text", () => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, attachment_ids: attachmentIds(), ...meta() }) }), go); };
+  return el("div", {}, el("label", { for: "t-text" }, "Transcription"), ta, el("div", { class: "row", style: "margin-top:10px" }, go));
+}
+
+async function loadConfig() {
+  try {
+    const c = await api("/config");
+    const warn = [];
+    if (!c.has_anthropic) warn.push("clé ANTHROPIC_API_KEY manquante");
+    if (c.transcribe_provider === "openai" && !c.has_openai) warn.push("aucun moteur de transcription configuré");
+    document.getElementById("cfg").textContent = warn.length ? "⚠ " + warn.join(" · ") : `Transcription : ${c.transcribe_provider} · Rédaction : ${c.model}`;
+  } catch {}
+}
+
+/* ============================================================ DÉTAIL */
+async function viewMeeting(id) {
+  let tab = sessionStorage.getItem("tab") || "pv";
+  const head = el("div"), body = el("div");
+  $app.replaceChildren(el("p", { class: "no-print" }, el("a", { href: "#/" }, "← Toutes les réunions")), head, body);
+  let m, polling = true, lastKey = "";
+  stopPoll = () => (polling = false);
+
+  const render = async () => {
+    const key = [m.status, m.progress, tab, m.analysis ? 1 : 0, m.rec_info?.chunks, m.atts_stale ? 1 : 0].join("|");
+    if (key === lastKey) return; lastKey = key;
+    head.replaceChildren(el("h1", {}, m.title || "Réunion sans titre"),
+      el("p", { class: "hint" }, fmtDate(m.created_at) + (m.duration ? " · " + fmtDur(m.duration) : "") + (m.source_url ? " · " + m.source_url : "")));
+    if (m.status === "recording") {
+      const ri = m.rec_info || {}, mine = live?.id === m.id && live.active;
+      body.replaceChildren(el("div", { class: "card" },
+        el("strong", {}, mine ? "● Enregistrement en cours sur cet appareil" : "Enregistrement non finalisé"), el("br"),
+        el("span", { class: "hint" }, `${ri.chunks || 0} segment(s) reçus` + (ri.last_chunk_age != null ? ` · dernier il y a ${ri.last_chunk_age} s` : "")),
+        mine ? el("p", {}, el("a", { href: "#/" }, "Retour à l'enregistreur")) :
+          el("div", { class: "row", style: "margin-top:12px" },
+            el("button", { class: "btn", onclick: () => finishRecording(id) }, "Finaliser et générer les documents"),
+            el("button", { class: "btn danger", onclick: () => del(id) }, "Supprimer"))));
+      return;
+    }
+    if (m.status === "error") {
+      body.replaceChildren(el("div", { class: "card" }, el("div", { class: "err" }, m.error || "Erreur inconnue"),
+        el("div", { class: "row", style: "margin-top:12px" },
+          el("button", { class: "btn", onclick: () => retryMeeting(id) }, m.transcript ? "↻ Relancer la rédaction" : "↻ Relancer le traitement (audio conservé)"),
+          el("button", { class: "btn danger", onclick: () => del(id) }, "Supprimer"))));
+      return;
+    }
+    if (m.status !== "done") {
+      body.replaceChildren(el("div", { class: "card progress", role: "status" }, el("div", { class: "spin" }), el("div", {}, el("strong", {}, STATUS[m.status] || m.status), el("br"), m.progress || "")));
+      return;
+    }
+    const tabs = el("div", { class: "tabs scroll", role: "tablist" });
+    [...Object.entries(DOC_LABELS), ["attachments", "Pièces jointes"], ["transcript", "Transcription"], ["infos", "Informations"]].forEach(([k, l]) =>
+      tabs.append(el("button", { class: "tab", role: "tab", "aria-selected": k === tab, onclick: () => { tab = k; sessionStorage.setItem("tab", k); lastKey = ""; render(); } }, l)));
+    const content = el("div", { class: "card" });
+    // pièces jointes ajoutées / retirées / (dés)activées après la rédaction : les rapports ne les reflètent pas encore
+    const stale = m.atts_stale ? el("div", { class: "alert no-print", role: "status" }, el("strong", {}, "ℹ Les pièces jointes ont changé depuis la rédaction. "),
+      "Régénérez pour que les rapports en tiennent compte (citations des sources, recoupements, suivi des actions antérieures). ",
+      el("div", { class: "row", style: "margin-top:8px" }, el("button", { class: "btn", type: "button", onclick: () => regenerate(id) }, "↻ Régénérer maintenant"))) : null;
+    fill(body, stale, tabs, content);
+    tabs.querySelector('[aria-selected="true"]')?.scrollIntoView({ inline: "center", block: "nearest" });   // onglet actif visible sur mobile
+    if (DOC_LABELS[tab]) await docView(content, id, tab);
+    else if (tab === "attachments") await attView(content, id);
+    else if (tab === "transcript") transcriptView(content);
+    else infosView(content);
+  };
+
+  const tick = async () => {
+    while (polling) {
+      try { m = window.__m = await api("/meetings/" + id); await render(); } catch (e) { toast(e.message); }
+      if (m && ["done", "error"].includes(m.status) && polling) {
+        // reste actif uniquement pour détecter une régénération
+        await new Promise((r) => setTimeout(r, 4000));
+      } else await new Promise((r) => setTimeout(r, 1800));
+    }
+  };
+  tick();
+}
+
+async function docView(host, id, type) {
+  const formats = DECK_TYPES.has(type) ? [["pptx", "PowerPoint"]] : [["pdf", "PDF"], ["docx", "Word"], ["xlsx", "Excel"]];
+  let nAtt = 0;
+  try { nAtt = (await api(`/meetings/${id}/attachments`)).filter((a) => a.included).length; } catch {}
+  const annexOn = nAtt > 0 && sessionStorage.getItem("gm_annexes") !== "0";
+  const q = `?annexes=${annexOn ? 1 : 0}`;
+  const toggle = nAtt ? el("label", { class: "annex-toggle" }, el("input", { type: "checkbox", checked: annexOn, onchange: (e) => { sessionStorage.setItem("gm_annexes", e.target.checked ? "1" : "0"); docView(host, id, type); } }),
+    ` Insérer les pièces jointes en annexe (${nAtt})`) : null;
+  const exp = el("div", { class: "exports no-print" }, el("strong", {}, "Exporter :"),
+    ...formats.map(([f, l]) =>
+      el("a", { class: "btn sec", href: `/api/meetings/${id}/export/${type}.${f}${q}`, download: true }, "⬇ " + l)), toggle);
+  host.replaceChildren(exp, el("p", { class: "hint" }, "Chargement…"));
+  try {
+    const [blocks, br] = await Promise.all([api(`/meetings/${id}/preview/${type}${q}`), api("/branding")]);
+    if (Array.isArray(blocks)) host.replaceChildren(exp, brandBand(br), renderBlocks(blocks), brandFoot(br));
+    else host.replaceChildren(exp, el("p", { class: "hint" }, `${blocks.slides.length} diapositives. Aperçu simplifié : le fichier PowerPoint contient les pictogrammes vectoriels modifiables, les images et les graphiques natifs${blocks.visual ? "" : " (version sobre : texte et tableaux)"}.`), renderSlides(blocks, br));
+  } catch (e) { host.append(el("div", { class: "err" }, e.message)); }
+}
+
+/* ============================================================ GABARIT */
+function brandBand(b) {
+  if (!b.has_logo && !b.org_name && !b.header_right) return el("span");
+  return el("div", { class: "band", style: `border-color:${b.color}` },
+    el("div", { class: "l", style: `color:${b.color}` }, b.has_logo ? el("img", { src: "/api/branding/logo?v=" + (b.v || Date.now()), alt: "Logo" }) : null, b.org_name),
+    el("div", { class: "r" }, b.header_right));
+}
+function brandFoot(b) {
+  if (!b.footer && !b.confidential) return el("span");
+  return el("div", { class: "bandfoot" }, el("span", {}, b.footer), el("b", {}, b.confidential));
+}
+
+async function viewBrand() {
+  let b = await api("/branding");
+  const prev = el("div", { class: "card", style: "background:var(--card)" });
+  const field = (k, label, ph) => el("div", {}, el("label", { for: "b-" + k }, label), el("input", { id: "b-" + k, value: b[k] || "", placeholder: ph, oninput: refresh }));
+  const color = el("input", { type: "color", id: "b-color", value: b.color, oninput: (e) => { hex.value = e.target.value.toUpperCase(); refresh(); } });
+  const hex = el("input", { type: "text", id: "b-hex", value: b.color, maxlength: 7, "aria-label": "Code couleur", oninput: (e) => { if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) { color.value = e.target.value; refresh(); } } });
+  const logoBox = el("div", { class: "logo-prev" });
+  const file = el("input", { type: "file", accept: "image/png,image/jpeg,image/gif,image/webp", "aria-label": "Fichier logo" });
+  const cur = () => ({ ...b, org_name: val("b-org_name"), header_right: val("b-header_right"), footer: val("b-footer"), confidential: val("b-confidential"), color: color.value.toUpperCase() });
+  function refresh() {
+    const c = cur(); c.v = b.v;
+    prev.replaceChildren(el("div", { class: "hint", style: "margin-bottom:6px" }, "Aperçu de l'en-tête et du pied de page"),
+      brandBand(c).tagName === "SPAN" ? el("div", { class: "empty" }, "Ajoutez un logo ou un texte d'en-tête") : brandBand(c),
+      el("div", { class: "doc" }, el("div", { class: "dt", style: `color:${c.color}` }, "PROCÈS-VERBAL DE RÉUNION"), el("h3", { style: `color:${c.color};border-color:${c.color}` }, "Exemple de titre de section")),
+      brandFoot(c));
+    logoBox.replaceChildren(b.has_logo ? el("img", { src: "/api/branding/logo?v=" + (b.v || 0), alt: "Logo actuel" }) : el("span", { class: "hint" }, "Aucun logo"));
+  }
+  file.onchange = async () => {
+    const f = file.files[0]; if (!f) return;
+    const fd = new FormData(); fd.append("file", f);
+    try { await api("/branding/logo", { method: "POST", body: fd }); b.has_logo = true; b.v = Date.now(); refresh(); toast("Logo enregistré."); }
+    catch (e) { toast(e.message); } file.value = "";
+  };
+  const rm = el("button", { class: "btn danger", onclick: async () => { await api("/branding/logo", { method: "DELETE" }); b.has_logo = false; refresh(); } }, "Retirer le logo");
+  const save = el("button", { class: "btn" }, "Enregistrer le gabarit");
+  save.onclick = async () => {
+    const { org_name, header_right, footer, confidential, color: col } = cur();
+    try { b = { ...(await api("/branding", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ org_name, header_right, footer, confidential, color: col }) })), v: b.v }; toast("Gabarit enregistré : il s'applique aux nouveaux exports PDF, Word et Excel."); }
+    catch (e) { toast(e.message); }
+  };
+  $app.replaceChildren(el("p", {}, el("a", { href: "#/" }, "← Retour")), el("h1", {}, "Gabarit des documents"),
+    el("div", { class: "card" },
+      el("p", { class: "hint" }, "Ces éléments sont appliqués à tous les exports (PV, CR, note de synthèse) en PDF, Word et Excel."),
+      el("label", {}, "Logo (PNG, JPEG, GIF ou WebP – fond transparent recommandé)"), logoBox,
+      el("div", { class: "row", style: "margin-top:8px" }, file, b.has_logo ? rm : null),
+      el("div", { class: "grid" }, field("org_name", "Nom de l'organisation", "Ex. Direction de la Sûreté – ACME"),
+        field("header_right", "Texte d'en-tête (à droite)", "Ex. Diffusion restreinte"),
+        field("footer", "Pied de page (remplace le pied par défaut)", "Ex. ACME – Document interne"),
+        field("confidential", "Mention de confidentialité", "Ex. CONFIDENTIEL")),
+      el("label", { for: "b-hex" }, "Couleur des titres et des tableaux"), el("div", { class: "colorrow" }, color, hex),
+      el("div", { class: "row", style: "margin-top:14px" }, save)),
+    prev);
+  refresh();
+}
+
+/* ---- aperçu des diapositives (même modèle que le fichier .pptx) ---- */
+// append() écrit « null » dans la page si on lui passe null : on filtre les éléments absents
+const put = (node, ...kids) => node.append(...kids.flat().filter((k) => k != null && k !== false));
+const fill = (node, ...kids) => node.replaceChildren(...kids.flat().filter((k) => k != null && k !== false));   // idem pour replaceChildren
+function renderSlides(spec, br) {
+  const wrap = el("div", { class: "slides", style: `--sc:${br.color || "#1F3A5F"}` });
+  const ic = (n) => el("span", { class: "emo" }, EMOJI[n] || "🎯");
+  const head = (d) => el("div", { class: "sh" }, spec.visual && d.icon ? el("span", { class: "badge-i" }, ic(d.icon)) : null, el("span", { class: "st" }, d.title));
+  const tone = (t) => ({ primary: "var(--sc)", green: "#2e9e5b", red: "#d64545", amber: "#d98a00", purple: "#7b5ea7" }[t] || "var(--sc)");
+  for (const d of spec.slides) {
+    const body = el("div", { class: "si" });
+    if (d.layout === "cover") {
+      put(body, el("div", { class: "cv-sub" }, d.subtitle), el("div", { class: "cv-t" }, d.title), el("div", { class: "cv-m" }, d.meta.map(([k, v]) => el("div", {}, spec.visual ? "" : k + " : ", v))));
+    } else if (d.layout === "kpis") {
+      put(body, head(d), el("div", { class: "kp" }, d.tiles.map((t) => el("div", { class: "kt" }, ic(t.icon), el("b", {}, t.value), el("small", {}, t.label)))),
+        d.extra.length ? el("div", { class: "kp x" }, d.extra.map((t) => el("div", { class: "kt" }, el("b", {}, t.value), el("small", {}, t.label)))) : null,
+        d.highlight ? el("div", { class: "hl" }, d.highlight) : null);
+    } else if (d.layout === "cards") {
+      put(body, head(d), el("div", { class: "cd" }, d.items.map((it) => el("div", { class: "c", style: `border-top-color:${tone(d.tone)}` },
+        el("span", { class: "badge-i", style: `background:${tone(d.tone)}` }, ic(it.icon)), el("div", {}, el("b", {}, it.title), it.detail ? el("small", {}, it.detail) : null, it.chip ? el("em", { style: `color:${tone(d.tone)}` }, it.chip) : null)))));
+    } else if (d.layout === "bullets") {
+      put(body, head(d), d.paragraph ? el("p", {}, d.paragraph) : null, d.items.length ? el("ul", {}, d.items.map((i) => el("li", {}, i))) : null);
+    } else if (d.layout === "topic") {
+      if (spec.visual) {
+        body.classList.add("tp");
+        put(body, el("div", { class: "tl" }, el("span", { class: "badge-i big" }, ic(d.icon)), el("small", {}, "POINT " + d.number), el("b", {}, d.title)),
+          el("div", { class: "tr" }, el("p", { class: "sum" }, d.summary), d.bullets.length ? el("ul", {}, d.bullets.map((i) => el("li", {}, i))) : null,
+            ...d.decisions.map((x) => el("div", { class: "dec" }, "✅ " + x))));
+      } else {
+        put(body, head(d), el("p", {}, d.summary),
+          d.bullets.length ? el("div", { class: "sec" }, el("small", {}, (d.bullets_label || "Points").toUpperCase()), el("ul", {}, d.bullets.map((i) => el("li", {}, i)))) : null,
+          d.decisions.length ? el("div", { class: "sec g" }, el("small", {}, "DÉCISIONS"), el("ul", {}, d.decisions.map((i) => el("li", {}, i)))) : null);
+      }
+    } else if (d.layout === "table") {
+      const tbl = el("table", {}, el("thead", {}, el("tr", {}, d.headers.map((h) => el("th", {}, h)))), el("tbody", {}, d.rows.map((r) => el("tr", {}, r.map((c) => el("td", {}, c))))));
+      const side = d.charts ? chartsPreview(d.charts) : null;
+      put(body, head(d), el("div", { class: side ? "tb2" : "" }, tbl, side));
+    } else if (d.layout === "people") {
+      put(body, head(d), el("div", { class: "pp" }, d.people.map((p) => el("div", {}, el("span", { class: "av" }, p.nom.split(/[\s-]+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase()), el("b", {}, p.nom), el("small", {}, p.fonction || ""), el("em", { class: "s-" + p.statut }, p.statut)))));
+    } else if (d.layout === "image") {
+      put(body, head(d), el("figure", { class: "sl-img" }, el("img", { src: `/api/attachments/${d.id}/image`, alt: d.caption || "Pièce jointe" }), el("figcaption", {}, d.caption || "")));
+    } else if (d.layout === "timeline") {
+      put(body, head(d), el("div", { class: "tm" }, d.steps.map((s, i) => el("div", {}, el("b", {}, s.when), el("span", { class: "dot", style: `background:${tone(s.tone === "red" ? "red" : s.tone === "green" ? "green" : "amber")}` }, String(i + 1)), el("div", { class: "tc" }, el("b", {}, s.label), el("small", {}, s.who))))));
+    }
+    wrap.append(el("div", { class: "sl " + d.layout + (spec.visual ? " vis" : "") }, body));
+  }
+  return wrap;
+}
+function chartsPreview(ch) {
+  const p = ch.priorities, tot = Math.max(1, p.haute + p.moyenne + p.basse);
+  const a = (p.haute / tot) * 360, b = a + (p.moyenne / tot) * 360;
+  const box = el("div", { class: "ch" }, el("div", { class: "donut", style: `background:conic-gradient(#d64545 0 ${a}deg,#d98a00 ${a}deg ${b}deg,#2e9e5b ${b}deg 360deg)` }),
+    el("small", {}, `${p.haute} haute · ${p.moyenne} moyenne · ${p.basse} basse`));
+  if (ch.owners.length) { const m = Math.max(...ch.owners.map((o) => o[1])); box.append(...ch.owners.map(([n, c]) => el("div", { class: "bar" }, el("span", {}, n), el("i", { style: `width:${(c / m) * 100}%` })))); }
+  return box;
+}
+
+function renderBlocks(blocks) {
+  const d = el("article", { class: "doc" });
+  for (const b of blocks) {
+    if (b.t === "title") d.append(el("div", { class: "dt" }, b.text));
+    else if (b.t === "subtitle") d.append(el("div", { class: "ds" }, b.text));
+    else if (b.t === "h") d.append(el("h3", {}, b.text));
+    else if (b.t === "h2") d.append(el("h4", {}, b.text));
+    else if (b.t === "p") d.append(el("p", b.bold ? { style: "font-weight:700" } : {}, b.text));
+    else if (b.t === "bullets") d.append(el("ul", {}, b.items.map((i) => el("li", {}, i))));
+    else if (b.t === "numbered") d.append(el("ol", {}, b.items.map((i) => el("li", {}, i))));
+    else if (b.t === "meta") d.append(el("table", { class: "meta" }, b.rows.map(([k, v]) => el("tr", {}, el("td", {}, k), el("td", {}, v)))));
+    else if (b.t === "table") d.append(el("table", {}, el("thead", {}, el("tr", {}, b.headers.map((h) => el("th", {}, h)))), el("tbody", {}, b.rows.map((r) => el("tr", {}, r.map((c) => el("td", {}, c)))))));
+    else if (b.t === "signatures") d.append(el("div", { class: "sign" }, b.labels.map((l) => el("div", {}, l))));
+    else if (b.t === "pagebreak") d.append(el("hr", { class: "pb" }));
+    else if (b.t === "image") d.append(el("figure", {}, el("img", { src: `/api/attachments/${b.id}/image`, alt: b.caption || "Pièce jointe", loading: "lazy" }), el("figcaption", {}, b.caption || "")));
+  }
+  return d;
+}
+
+async function attView(host, id) {
+  const draw = async () => {
+    let list = [];
+    try { list = await api(`/meetings/${id}/attachments`); } catch (e) { toast(e.message); }
+    const input = el("input", { type: "file", multiple: true, accept: ATT_ACCEPT, "aria-label": "Ajouter des pièces jointes" });
+    input.onchange = async () => { try { await uploadFiles(input.files, id); } catch (e) { toast(e.message); } draw(); };
+    const items = list.map((a) => {
+      const detail = el("div", { class: "att-detail", hidden: true });
+      const view = el("button", { class: "btn sec", type: "button" }, "Voir le contenu extrait");
+      view.onclick = async () => {
+        if (!detail.hidden) { detail.hidden = true; return; }
+        try {
+          const c = await api("/attachments/" + a.id + "/content");
+          fill(detail, 
+            Object.keys(c.meta).length ? el("table", { class: "meta-t" }, Object.entries(c.meta).map(([k, v]) => el("tr", {}, el("th", {}, k), el("td", {}, v)))) : null,
+            c.has_image ? el("img", { src: `/api/attachments/${a.id}/image`, alt: a.name, style: "max-width:100%;max-height:260px" }) : null,
+            c.text ? el("pre", {}, c.text.slice(0, 4000) + (c.text.length > 4000 ? "\n[…]" : "")) : null,
+            ...c.tables_data.slice(0, 3).map((t) => el("div", {}, el("small", {}, `${t.name} — ${t.total_rows} ligne(s)`),
+              el("table", { class: "mini-t" }, el("thead", {}, el("tr", {}, t.headers.map((h) => el("th", {}, h)))), el("tbody", {}, t.rows.slice(0, 8).map((r) => el("tr", {}, r.map((x) => el("td", {}, x)))))))),
+            c.note ? el("p", { class: "hint" }, c.note) : null);
+          detail.hidden = false;
+        } catch (e) { toast(e.message); }
+      };
+      return el("li", { class: "att-card" },
+        el("div", { class: "att-head" }, el("span", { class: "emo" }, KIND_EMOJI[a.kind] || "📎"),
+          el("div", { class: "an" }, el("b", {}, a.name), el("small", {}, `${a.label} · ${fmtSize(a.size)}`), el("p", { class: "hint", style: "margin:2px 0 0" }, a.snippet || "")),
+          el("label", { class: "inc", title: "Décochez pour exclure des rapports et de la rédaction" }, el("input", { type: "checkbox", checked: a.included, onchange: async (e) => {
+            try { await api("/attachments/" + a.id, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ included: e.target.checked }) }); } catch (er) { toast(er.message); }
+          } }), " Inclure")),
+        a.note ? el("p", { class: "hint" }, "ℹ " + a.note) : null,
+        el("div", { class: "row" }, view, el("a", { class: "btn sec", href: `/api/attachments/${a.id}/file`, download: a.name }, "⬇ Original"),
+          el("button", { class: "btn danger", type: "button", onclick: async () => { if (!confirm(`Supprimer « ${a.name} » ?`)) return; await api("/attachments/" + a.id, { method: "DELETE" }); draw(); } }, "Supprimer")),
+        detail);
+    });
+    fill(host, 
+      el("p", { class: "hint" }, "Les pièces jointes incluses sont lues par l'IA lors de la rédaction (régénérez pour en tenir compte) et peuvent être insérées en annexe de tous les rapports : PV, CR, note, Word, Excel, PDF, PowerPoint. Le fichier d'origine reste téléchargeable."),
+      el("div", { class: "row", style: "margin:8px 0 14px" }, input,
+        list.length ? el("button", { class: "btn", type: "button", onclick: () => regenerate(id) }, "↻ Régénérer en tenant compte des pièces jointes") : null),
+      list.length ? el("ul", { class: "att-cards" }, items) : el("p", { class: "empty" }, "Aucune pièce jointe. Ajoutez un mail Outlook, un Word, un Excel…"));
+  };
+  await draw();
+}
+
+function transcriptView(host) {
+  const ta = el("textarea", { class: "transcript", "aria-label": "Transcription" }); ta.value = m_transcript();
+  const save = el("button", { class: "btn" }, "Enregistrer et régénérer les documents");
+  save.onclick = async () => {
+    save.disabled = true;
+    try {
+      await api("/meetings/" + currentId(), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ transcript: ta.value }) });
+      await regenerate(currentId());
+    } catch (e) { toast(e.message); save.disabled = false; }
+  };
+  const player = window.__m?.has_audio ? el("div", { class: "audio-box" }, el("small", {}, "Réécoutez l'enregistrement pour vérifier un passage (audio compact conservé)"),
+    el("audio", { controls: true, preload: "none", src: `/api/meetings/${currentId()}/audio`, style: "width:100%" })) : null;
+  fill(host, player, el("p", { class: "hint" }, "Corrigez les noms propres ou acronymes mal transcrits, puis régénérez : les trois documents sont réécrits à partir du texte corrigé."),
+    ta, el("div", { class: "row", style: "margin-top:10px" }, save,
+      el("a", { class: "btn sec", href: "data:text/plain;charset=utf-8," + encodeURIComponent(ta.value), download: "transcription.txt" }, "⬇ .txt")));
+}
+const currentId = () => location.hash.match(/#\/m\/(\w+)/)[1];
+const m_transcript = () => window.__m?.transcript || "";
+
+function infosView(host) {
+  const m = window.__m;
+  const inp = (k, label, type = "text") => el("div", {}, el("label", {}, label), el("input", { type, "data-k": k, value: m[k] || "" }));
+  const part = el("textarea", { "data-k": "participants" }); part.value = m.participants || "";
+  const ctx = el("textarea", { "data-k": "context" }); ctx.value = m.context || "";
+  const save = el("button", { class: "btn" }, "Enregistrer");
+  save.onclick = async () => {
+    const body = {}; host.querySelectorAll("[data-k]").forEach((n) => (body[n.dataset.k] = n.value));
+    try { await api("/meetings/" + m.id, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); toast("Enregistré. Utilisez « Régénérer » pour appliquer au contenu."); } catch (e) { toast(e.message); }
+  };
+  host.replaceChildren(el("div", { class: "grid" }, inp("title", "Titre"), inp("meeting_date", "Date", "date"), inp("location", "Lieu / outil")),
+    el("label", {}, "Participants"), part, el("label", {}, "Contexte / consignes"), ctx,
+    el("div", { class: "row", style: "margin-top:12px" }, save,
+      el("button", { class: "btn sec", onclick: () => regenerate(m.id) }, "↻ Régénérer les documents"),
+      el("button", { class: "btn danger", onclick: () => del(m.id) }, "Supprimer")));
+}
+
+async function retryMeeting(id) {
+  try { await api(`/meetings/${id}/retry`, { method: "POST" }); route(); }
+  catch (e) { toast(e.message); }
+}
+async function finishRecording(id) {
+  try { await api(`/recordings/${id}/finish`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }); route(); }
+  catch (e) { toast(e.message); }
+}
+async function regenerate(id) { try { await api(`/meetings/${id}/regenerate`, { method: "POST" }); location.hash = "#/m/" + id; route(); } catch (e) { toast(e.message); } }
+async function del(id) { if (!confirm("Supprimer définitivement cette réunion et ses documents ?")) return; try { await api("/meetings/" + id, { method: "DELETE" }); location.hash = "#/"; } catch (e) { toast(e.message); } }
+
+/* ---- indicateur d'enregistrement visible sur toutes les pages ---- */
+const recbar = document.getElementById("recbar");
+setInterval(() => {
+  if (!live?.active) { recbar.hidden = true; return; }
+  recbar.hidden = false;
+  recbar.className = "recbar" + (live.state === "recording" ? "" : " warn");
+  const t = new Date(live.elapsed() * 1000).toISOString().substr(11, 8);
+  recbar.textContent = ({ interrupted: "⚠ Interrompu ", paused: "⏸ Pause ", "needs-tap": "⚠ Toucher pour reprendre " }[live.state] || "● REC ") + t;
+}, 1000);
+
+/* ---- application installable + ouverture hors-ligne ---- */
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+GRec.resumePending();   // termine d'éventuelles fins d'enregistrement restées en attente (réseau absent)
+route();
+</script>
