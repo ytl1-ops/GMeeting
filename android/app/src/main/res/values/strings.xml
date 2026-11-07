@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">GMeeting</string>
+    <string name="notif_channel_recording">Enregistrement en cours</string>
+    <string name="notif_channel_status">Envois et connexion</string>
+    <string name="notif_recording_title">Enregistrement de la réunion</string>
+    <string name="notif_recording_paused">En pause</string>
+    <string name="notif_recording_interrupted">Micro occupé (appel ?) — reprise automatique</string>
+    <string name="notif_action_pause">Pause</string>
+    <string name="notif_action_resume">Reprendre</string>
+    <string name="notif_action_stop">Terminer</string>
+    <string name="notif_auth_title">Reconnexion nécessaire</string>
+    <string name="notif_auth_text">Le serveur refuse le mot de passe : vos enregistrements sont conservés sur le téléphone.</string>
+</resources>

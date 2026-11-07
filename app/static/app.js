@@ -107,6 +107,12 @@ async function submitForm(path, build, btn) {
 }
 
 async function viewHome() {
+  // Partage Android : les pièces ont déjà été déposées sur le serveur (zone d'attente) ; on les rattache au prochain compte rendu.
+  const pj = location.hash.match(/^#\/\?pj=([0-9a-f,]{1,300})$/);
+  if (pj) {
+    for (const id of pj[1].split(",").filter(Boolean)) if (!staged.some((s) => s.id === id)) staged.push({ id, name: "Pièce partagée", kind: "", label: "Partagée depuis une autre application", size: 0 });
+    history.replaceState(null, "", "#/");
+  }
   const tabsDef = [["rec", "🎙 Enregistrer"], ["url", "🔗 Lien vidéo"], ["file", "📁 Fichier"], ["txt", "📝 Texte"]];
   const panel = el("div");
   const tabs = el("div", { class: "tabs", role: "tablist" });
@@ -245,6 +251,7 @@ function recPanel() {
     }
   };
   // revenir sur l'onglet Enregistrer pendant une session en cours : on rebranche l'interface sur la session active
+  if (!live) live = GRec.adoptNative?.() || null;      // application Android : l'enregistrement natif a continué pendant que la page était fermée
   if (live?.active) {
     live.onState = showState; live.onLevel = (l) => (meter.firstChild.style.width = Math.min(100, l * 140) + "%"); live.onEvent = say;
     ui(true); showState(live.state); const s = live;
@@ -254,9 +261,9 @@ function recPanel() {
   stopRecorderCleanup = () => { clearInterval(iv); unsub(); }; // la session continue même si l'on change de page
   return el("div", { class: "rec-box" }, el("div", { class: "row", style: "justify-content:center" }, mode, quality), qualityNote, timer, meter, banner,
     el("div", { class: "row", style: "justify-content:center;margin:12px 0" }, btn, pauseBtn, markBtn, stopBtn), tapBtn, net, log,
-    offlineTip(),
+    ...(window.GMeetingNative ? [el("p", { class: "hint" }, "Enregistrement assuré par l'application : il continue écran verrouillé et pendant un appel, et l'audio non envoyé reste sur le téléphone.")] : [offlineTip(),
     el("p", { class: "hint" }, "L'audio est écrit sur l'appareil puis envoyé en continu : une coupure réseau, un appel téléphonique ou la fermeture de la page ne font pas perdre l'enregistrement. " +
-      "Gardez la page ouverte et l'écran allumé. L'accès au micro exige HTTPS ou localhost."));
+      "Gardez la page ouverte et l'écran allumé. L'accès au micro exige HTTPS ou localhost.")]));
 }
 
 function urlPanel() {

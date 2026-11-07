@@ -2,7 +2,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, "claude/**"]
 permissions:
   contents: read
 concurrency:                      # un nouveau push annule l'exécution précédente de la même branche
@@ -33,3 +33,48 @@ jobs:
         run: for f in app/static/*.js; do node --check "$f"; done
       - name: Tests
         run: pytest -q
+
+  docker:
+    # Construit le VRAI Dockerfile (apt compris) et le démarre avec le durcissement de production (docker-compose.yml)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configuration Compose, Caddyfile et scripts de déploiement
+        run: |
+          cp .env.example .env
+          docker compose config -q
+          for f in deploy/*.sh; do bash -n "$f"; done
+          docker run --rm -e DOMAIN=localhost -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2 caddy validate --config /etc/caddy/Caddyfile
+      - name: Construire l'image
+        run: docker build -t gmeeting:ci .
+      - name: Démarrer en mode durci et vérifier
+        run: |
+          docker run -d --name gm --read-only --tmpfs /tmp:size=64m --cap-drop ALL --security-opt no-new-privileges:true \
+            -v gmdata:/data -p 8000:8000 -e GMEETING_PASSWORD=ci-secret gmeeting:ci
+          for i in $(seq 1 40); do [ "$(docker inspect -f '{{.State.Health.Status}}' gm)" = healthy ] && break; sleep 3; done
+          [ "$(docker inspect -f '{{.State.Health.Status}}' gm)" = healthy ] || { docker logs gm; exit 1; }
+          test "$(docker exec gm id -u)" = 10001                                   # jamais root
+          docker exec gm ffmpeg -version | head -1 && docker exec gm ffprobe -version | head -1
+          docker exec gm ffmpeg -hide_banner -encoders | grep -q libopus           # encodeur audio du produit
+          curl -fsS http://127.0.0.1:8000/healthz
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/)" = 401          # interface protégée
+          curl -fsS -u x:ci-secret http://127.0.0.1:8000/api/config
+          curl -fsS -u x:ci-secret -D - -o /dev/null http://127.0.0.1:8000/ | grep -i content-security-policy
+          if docker exec gm sh -c 'touch /srv/x' 2>/dev/null; then echo "le système de fichiers devrait être en lecture seule"; exit 1; fi
+      - name: Sauvegarde puis restauration dans le conteneur
+        run: |
+          curl -fsS -u x:ci-secret -X POST http://127.0.0.1:8000/api/meetings/text -H 'Content-Type: application/json' -d '{"text":"[00:00:01] test","title":"ci"}' >/dev/null
+          docker exec gm python -m app.backup create --keep 3
+          docker exec gm sh -c 'ls -l /data/backups/gmeeting-*.tar.gz'
+          docker cp gm:/data/backups/. /tmp/bk && ls /tmp/bk
+          docker stop gm
+          # restauration vers un volume NEUF, archive lue sur l'entrée standard (même méthode que deploy/restore.sh)
+          docker volume create gmdata2
+          docker run --rm -i --read-only --tmpfs /tmp --cap-drop ALL -v gmdata2:/data gmeeting:ci \
+            python -m app.backup restore - < "/tmp/bk/$(ls /tmp/bk | head -1)"
+          docker run --rm --read-only --tmpfs /tmp --cap-drop ALL -v gmdata2:/data gmeeting:ci \
+            python -c "import sqlite3;n=sqlite3.connect('/data/gmeeting.db').execute('select count(*) from meetings').fetchone()[0];print('réunions restaurées:',n);assert n>=1"
+      - name: Journaux en cas d'échec
+        if: failure()
+        run: docker logs gm || true

@@ -1,5 +1,7 @@
 FROM python:3.12-slim
-ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 DATA_DIR=/data
+# Racine du conteneur en lecture seule (voir docker-compose.yml) : tout ce qui s'écrit va dans /data (volume) ou /tmp/.cache.
+# HF_HOME : les modèles de transcription locale (faster-whisper) sont téléchargés une fois dans le volume.
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 DATA_DIR=/data XDG_CACHE_HOME=/tmp/.cache HF_HOME=/data/models
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 10001 gmeeting && mkdir /data && chown gmeeting /data

@@ -1,0 +1,158 @@
+package app.gmeeting
+
+import android.Manifest
+import android.annotation.SuppressLint
+import android.app.Activity
+import android.app.DownloadManager
+import android.content.Intent
+import android.net.Uri
+import android.net.http.SslError
+import android.os.Build
+import android.os.Bundle
+import android.os.Environment
+import android.webkit.CookieManager
+import android.webkit.DownloadListener
+import android.webkit.HttpAuthHandler
+import android.webkit.SslErrorHandler
+import android.webkit.URLUtil
+import android.webkit.ValueCallback
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.widget.Toast
+import app.gmeeting.core.ServerConfig
+
+/** Coque de l'application : l'interface web du serveur de l'utilisateur + enregistreur natif (voir NativeBridge). */
+class MainActivity : Activity() {
+    private lateinit var web: WebView
+    private var cfg: ServerConfig? = null
+    @Volatile private var trustedPage = false
+    private var chooser: ValueCallback<Array<Uri>>? = null
+
+    @SuppressLint("SetJavaScriptEnabled")
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        cfg = GMeetingApp.from(this).secure.load()
+        if (cfg == null) { startActivity(Intent(this, SetupActivity::class.java)); finish(); return }
+        web = WebView(this)
+        setContentView(web)
+        web.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            allowFileAccess = false; allowContentAccess = false
+            mediaPlaybackRequiresUserGesture = true
+            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            setSupportMultipleWindows(false)
+        }
+        CookieManager.getInstance().setAcceptThirdPartyCookies(web, false)
+        web.addJavascriptInterface(NativeBridge(this, { trustedPage }, { askPermissions() }), "GMeetingNative")
+        web.webViewClient = client()
+        web.webChromeClient = chrome()
+        web.setDownloadListener(download())
+        if (savedInstanceState != null) web.restoreState(savedInstanceState) else load(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(intent); if (cfg != null) load(intent) }
+
+    override fun onSaveInstanceState(out: Bundle) { super.onSaveInstanceState(out); if (cfg != null) web.saveState(out) }
+
+    private fun load(i: Intent?) {
+        val c = cfg ?: return
+        val path = i?.getStringExtra(EXTRA_PATH)?.takeIf { PATH.matches(it) }
+        web.loadUrl(c.root + "/" + (path?.let { "#$it" } ?: ""))
+    }
+
+    private fun sameHost(u: Uri?): Boolean {
+        val b = Uri.parse(cfg?.root ?: return false)
+        return u != null && u.scheme == b.scheme && u.host == b.host && u.port == b.port
+    }
+
+    private fun client() = object : WebViewClient() {
+        override fun shouldOverrideUrlLoading(v: WebView, r: WebResourceRequest): Boolean {
+            if (sameHost(r.url)) return false
+            runCatching { startActivity(Intent(Intent.ACTION_VIEW, r.url)) }      // liens externes : dans le navigateur, jamais dans notre WebView
+            return true
+        }
+        override fun onPageStarted(v: WebView, url: String?, f: android.graphics.Bitmap?) { trustedPage = sameHost(Uri.parse(url ?: "")) }
+        override fun onPageFinished(v: WebView, url: String?) { trustedPage = sameHost(Uri.parse(url ?: "")) }
+        override fun onReceivedHttpAuthRequest(v: WebView, h: HttpAuthHandler, host: String?, realm: String?) {
+            val c = cfg
+            if (c != null && host == Uri.parse(c.root).host && !authTried) { authTried = true; h.proceed(c.user, c.password) }
+            else { h.cancel(); startActivity(Intent(this@MainActivity, SetupActivity::class.java)) }
+        }
+        override fun onReceivedSslError(v: WebView, h: SslErrorHandler, e: SslError?) { h.cancel() }     // jamais de contournement du certificat
+        override fun onReceivedError(v: WebView, r: WebResourceRequest, e: WebResourceError) {
+            if (r.isForMainFrame) { trustedPage = false; showOffline() }
+        }
+    }
+
+    private var authTried = false
+
+    /** Serveur injoignable (mode avion…) : l'enregistrement reste possible, il sera envoyé au retour du réseau. */
+    private fun showOffline() {
+        val c = cfg ?: return
+        val html = """<meta name=viewport content="width=device-width,initial-scale=1"><body style="font-family:sans-serif;padding:24px;text-align:center">
+            <h2>Serveur injoignable</h2><p>Vous pouvez quand même enregistrer : l'audio est conservé sur le téléphone et envoyé au retour du réseau.</p>
+            <p><button id=s style="font-size:18px;padding:14px 22px">● Enregistrer</button></p><p><button id=e style="font-size:18px;padding:14px 22px">■ Terminer</button></p>
+            <p id=t></p><p><button onclick="location.reload()">Réessayer la connexion</button></p>
+            <script>const N=window.GMeetingNative;const t=document.getElementById('t');
+            document.getElementById('s').onclick=()=>{ if(!N||!N.hasMicPermission()){ if(N)N.requestPermissions(); t.textContent='Autorisez le micro puis réessayez.'; return;} N.start('{}',32); t.textContent='Enregistrement en cours…'};
+            document.getElementById('e').onclick=()=>{ if(N){N.finish('{}'); t.textContent='Terminé : envoi dès que le réseau revient.'}};</script></body>"""
+        trustedPage = true
+        web.loadDataWithBaseURL(c.root + "/offline", html, "text/html", "utf-8", null)
+    }
+
+    private fun chrome() = object : WebChromeClient() {
+        override fun onShowFileChooser(w: WebView, cb: ValueCallback<Array<Uri>>, p: FileChooserParams): Boolean {
+            chooser?.onReceiveValue(null); chooser = cb
+            return try { startActivityForResult(p.createIntent(), REQ_FILE); true } catch (e: Exception) { chooser = null; false }
+        }
+        override fun onPermissionRequest(request: android.webkit.PermissionRequest) { request.deny() }     // le micro passe par le service natif, pas par la page
+    }
+
+    private fun download() = DownloadListener { url, ua, cd, mime, _ ->
+        val c = cfg ?: return@DownloadListener
+        if (!sameHost(Uri.parse(url))) return@DownloadListener
+        val name = URLUtil.guessFileName(url, cd, mime)
+        val r = DownloadManager.Request(Uri.parse(url)).setMimeType(mime).addRequestHeader("Authorization", c.authHeader()).addRequestHeader("User-Agent", ua)
+            .setTitle(name).setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name)
+        getSystemService(DownloadManager::class.java).enqueue(r)
+        Toast.makeText(this, "Téléchargement : $name", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun askPermissions() {
+        val p = mutableListOf(Manifest.permission.RECORD_AUDIO)
+        if (Build.VERSION.SDK_INT >= 33) p += Manifest.permission.POST_NOTIFICATIONS
+        runOnUiThread { requestPermissions(p.toTypedArray(), REQ_PERM) }
+    }
+
+    override fun onRequestPermissionsResult(code: Int, perms: Array<out String>, res: IntArray) {
+        super.onRequestPermissionsResult(code, perms, res)
+        if (code == REQ_PERM && cfg != null) web.evaluateJavascript("window.dispatchEvent(new Event('gmeeting-permissions'))", null)
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(req: Int, res: Int, data: Intent?) {
+        super.onActivityResult(req, res, data)
+        if (req == REQ_FILE) {
+            val r = if (res == RESULT_OK && data != null) android.webkit.WebChromeClient.FileChooserParams.parseResult(res, data) else null
+            chooser?.onReceiveValue(r); chooser = null
+        }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() { if (cfg != null && web.canGoBack()) web.goBack() else super.onBackPressed() }
+
+    override fun onDestroy() { if (cfg != null) { web.removeJavascriptInterface("GMeetingNative"); web.destroy() }; super.onDestroy() }
+
+    companion object {
+        const val EXTRA_PATH = "path"
+        private val PATH = Regex("/(m/[0-9a-zA-Z]{1,32}|\\?pj=[0-9a-f,]{1,300})")
+        private const val REQ_FILE = 11
+        private const val REQ_PERM = 12
+    }
+}
