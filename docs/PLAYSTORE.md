@@ -44,7 +44,7 @@ Application Android = **client du serveur de l'utilisateur** (modèle Nextcloud 
 
 ## Fiche (français — à traduire en anglais pour l'international)
 - **Titre (≤30)** : GMeeting – Comptes rendus
-- **Description courte (≤80)** : Enregistrez vos réunions : PV, CR et synthèse prêts à envoyer, chez vous.
+- **Description courte (≤80)** : voir `docs/store/FICHE.md` (accroche : « Le compte rendu est prêt avant que vous ayez rangé votre ordinateur »).
 - **Mots-clés à placer naturellement dans la description** : compte rendu de réunion, procès-verbal, transcription, enregistreur de
   réunion, note de synthèse, dictaphone, Word, PowerPoint, auto-hébergé, confidentialité, hors ligne.
 - **Texte long** : problème (réunions mal retranscrites) → solution (une touche, le PV/CR/synthèse arrive) → différenciateurs

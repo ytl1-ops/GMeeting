@@ -5,34 +5,72 @@ données d'exemple — à remplacer par des captures du téléphone dès que vou
 `node tests/e2e/store_screenshots.js` (serveur de test lancé).
 
 ## Français (langue par défaut)
+**Accroche** : « Le compte rendu est prêt avant que vous ayez rangé votre ordinateur. »
 **Titre (≤30)** : GMeeting – Comptes rendus
-**Description courte (≤80)** : Enregistrez vos réunions : PV, CR et synthèse prêts à envoyer, chez vous.
+**Description courte (≤80)** : Le compte rendu de vos réunions, prêt à envoyer. Sur votre serveur, chez vous.
 **Description complète** :
-Transformez chaque réunion en documents prêts à envoyer — sans confier vos enregistrements à un cloud tiers.
+Le compte rendu est prêt avant que vous ayez rangé votre ordinateur.
 
-GMeeting enregistre vos réunions (ou importe un enregistrement, un lien vidéo, un texte) et rédige automatiquement :
-• un procès-verbal, un compte rendu et une note de synthèse
-• une présentation PowerPoint sobre, ou illustrée de pictogrammes et de chiffres clés
-• des exports Word, PDF et Excel, avec votre logo et votre en-tête
+Vous sortez de réunion, GMeeting a déjà rédigé le document : procès-verbal, compte rendu ou note de synthèse, à l'en-tête de votre cabinet ou de votre entreprise. Fini la rédaction du soir.
 
-Pensé pour les vraies réunions :
-• L'enregistrement continue écran verrouillé et pendant un appel téléphonique
-• Mode avion : l'audio est conservé et envoyé dès le retour du réseau
-• Partagez un mail Outlook, un Word, un Excel ou un PDF vers GMeeting : ils enrichissent le compte rendu (noms, chiffres, ordre du jour)
-• Audio mono optimisé voix : qualité claire, fichiers légers
+CE QUE VOUS OBTENEZ
+• Un procès-verbal, un compte rendu et une note de synthèse rédigés à partir de l'enregistrement
+• Des exports Word, PDF et Excel, et une présentation PowerPoint sobre ou illustrée de pictogrammes et de chiffres clés
+• Votre logo, votre couleur, votre en-tête sur chaque document
 
-Vos données restent chez vous : l'application se connecte à VOTRE serveur GMeeting. Aucune publicité, aucun pistage.
+POUR LES VRAIES RÉUNIONS
+• L'enregistrement continue écran verrouillé et pendant un appel téléphonique : il reprend seul et l'interruption est notée
+• Sans réseau, l'audio est conservé sur le téléphone et envoyé dès que la connexion revient
+• Partagez un mail Outlook, un Word, un Excel ou un PDF vers GMeeting : ils enrichissent le compte rendu (noms, chiffres, ordre du jour), avec leurs sources
+• Importez aussi un enregistrement existant, un lien vidéo ou un texte
+• Audio mono optimisé pour la voix : net, et des fichiers légers
 
-Prérequis : un serveur GMeeting (installation guidée par Docker, voir le guide du projet). L'application ne fonctionne pas sans serveur.
+VOS RÉUNIONS RESTENT CHEZ VOUS
+L'application se connecte à VOTRE serveur GMeeting. Nous ne recevons ni vos enregistrements ni vos documents. Aucune publicité, aucun pistage.
+
+IMPORTANT — À SAVOIR AVANT D'INSTALLER
+GMeeting ne fonctionne pas seul : il faut un serveur GMeeting (le vôtre, celui de votre entreprise, ou un serveur installé pour vous). Un guide d'installation par Docker est fourni avec le projet. La rédaction et la transcription utilisent les clés de service d'IA configurées sur ce serveur.
+
+Relisez toujours le procès-verbal avant de le diffuser : les propos ne sont pas attribués automatiquement à chaque participant.
 
 ## English
+**Hook**: "Your meeting minutes are ready before you have packed your laptop."
 **Title**: GMeeting – Meeting Minutes
-**Short description**: Record meetings, get minutes & summaries ready to send — on your own server.
-**Full description**: Turn every meeting into ready-to-send documents without handing recordings to a third-party cloud. GMeeting records (or imports
-audio, video links, text) and writes formal minutes, a meeting report and an executive summary, plus plain or illustrated PowerPoint decks and
-Word/PDF/Excel exports with your logo. Recording keeps going with the screen locked and during phone calls; airplane mode is supported (audio is
-kept and uploaded later). Share Outlook emails, Word, Excel or PDF files to GMeeting to enrich the report. Your data stays on YOUR server — no ads, no
-tracking. Requires a self-hosted GMeeting server (Docker guide included); the app does not work without one.
+**Short description**: Meeting minutes ready to send, drafted on your own server. Data stays yours.
+**Full description**:
+Your meeting minutes are ready before you have packed your laptop.
+
+You leave the meeting and GMeeting has already drafted the document: formal minutes, a meeting report or an executive summary, under your firm's or company's letterhead. No more writing up at night.
+
+WHAT YOU GET
+• Formal minutes, a meeting report and an executive summary written from the recording
+• Word, PDF and Excel exports, plus a plain or illustrated PowerPoint deck with icons and key figures
+• Your logo, colour and letterhead on every document
+
+BUILT FOR REAL MEETINGS
+• Recording keeps going with the screen locked and during a phone call: it resumes by itself and the interruption is noted
+• Without a network, audio is kept on the phone and uploaded when the connection returns
+• Share an Outlook email, a Word, Excel or PDF file to GMeeting: they enrich the report (names, figures, agenda), with sources
+• You can also import an existing recording, a video link or text
+• Voice-optimised mono audio: clear sound, small files
+
+YOUR MEETINGS STAY WITH YOU
+The app connects to YOUR GMeeting server. We receive neither your recordings nor your documents. No ads, no tracking.
+
+IMPORTANT — BEFORE YOU INSTALL
+GMeeting does not work on its own: it needs a GMeeting server (yours, your company's, or one set up for you). A Docker installation guide ships with the project. Drafting and transcription use the AI service keys configured on that server.
+
+Always review the minutes before sharing them: statements are not automatically attributed to each participant.
+
+## À valider avant publication (promesses de la fiche)
+Chaque phrase ci-dessous n'est vraie que si elle a été constatée sur de vrais téléphones et avec de vraies clés IA. À cocher avant d'envoyer la fiche :
+- [ ] « Prêt avant que vous ayez rangé votre ordinateur » : mesurer le délai réel entre « Terminer » et le document, sur des réunions de 15, 30 et 60 minutes. Si le délai
+      dépasse quelques minutes, adoucir l'accroche (« prêt peu après la réunion »). Google Play refuse les promesses trompeuses.
+- [ ] « Continue écran verrouillé et pendant un appel » : testé sur au moins 3 modèles (dont Samsung et Xiaomi).
+- [ ] « Sans réseau : conservé puis envoyé » : testé en mode avion de 5 minutes.
+- [ ] « Partagez un mail Outlook… » : testé depuis l'application Outlook Android.
+- [ ] Les captures d'écran viennent du téléphone et montrent un vrai compte rendu, pas les données d'exemple.
+- [ ] Le serveur de démonstration fourni aux relecteurs fonctionne avec de vraies clés IA.
 
 ## Formulaires
 - **Catégorie** : Productivité. **Public** : adultes (18+), pas destiné aux enfants.
