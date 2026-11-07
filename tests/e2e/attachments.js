@@ -6,7 +6,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms)); let fails = 0;
 const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) fails++; };
 (async () => {
   const b = await chromium.launch({ args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] });
-  const ctx = await b.newContext({ acceptDownloads: true, permissions: ['microphone'], viewport: { width: 1100, height: 900 } }); const p = await ctx.newPage();
+  const ctx = await b.newContext({ locale: 'fr-FR', acceptDownloads: true, permissions: ['microphone'], viewport: { width: 1100, height: 900 } }); const p = await ctx.newPage();
   const errs = []; p.on('pageerror', e => errs.push(e.message)); p.on('console', m => m.type() === 'error' && !/422/.test(m.text()) && errs.push(m.text()));
   await p.goto(B + '/'); await p.click('.tab:has-text("Texte")'); await p.fill('#t-text', '[00:00:01] Bonjour à tous.');
   await p.click('summary:has-text("pièces jointes")');

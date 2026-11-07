@@ -9,7 +9,7 @@ async function waitStatus(id, want, ms = 40000) { const t = Date.now(); for (;;)
 
 (async () => {
   const b = await chromium.launch({ args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] });
-  const ctx = await b.newContext({ permissions: ['microphone'], viewport: { width: 1000, height: 900 } });
+  const ctx = await b.newContext({ locale: 'fr-FR', permissions: ['microphone'], viewport: { width: 1000, height: 900 } });
   const p = await ctx.newPage(); const errs = [];
   p.on('pageerror', e => errs.push(e.message));
   const start = async () => { await p.goto(B + '/'); await p.waitForSelector('.rec-btn'); await p.click('.rec-btn'); await p.waitForSelector('text=Terminer et générer'); return p.evaluate(() => live.id); };

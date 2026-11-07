@@ -155,6 +155,13 @@ native (non fournie). Hors-ligne, l'audio n'existe que sur l'appareil jusqu'à l
 navigateurs, notamment Safari, purgent les données d'un site peu utilisé ; l'application installée est mieux protégée),
 et gardez de la place (≈ 30-60 Mo par heure). Un avertissement s'affiche si l'espace est faible.
 
+## Langues : français et anglais
+- **Interface** (web et application Android) : français ou anglais. Langue par défaut = celle du navigateur ou du téléphone (français → FR, sinon EN) ; bouton **FR | EN** dans l'en-tête pour changer. Sur Android, les textes natifs sont dans `res/values` (anglais) et `res/values-fr`.
+- **Documents** (PV, CR, note de synthèse, présentations, PDF / Word / Excel / PowerPoint) : **langue du rapport** choisie à la création (champ « Langue du rapport », par défaut celle de l'interface) ou modifiée dans l'onglet *Informations* puis *Régénérer*. Le modèle rédige dans cette langue et les intitulés fixes sont traduits (`app/labels.py`). Sans choix : français.
+- **Langue parlée** (transcription) reste un réglage distinct : on peut enregistrer en français et obtenir un rapport en anglais, ou l'inverse.
+- Traduction de l'interface : dictionnaire dans `app/static/i18n.js` (le code reste écrit en français). Le contenu des réunions n'est jamais traduit par l'interface. Un message d'erreur du serveur absent du dictionnaire s'affiche tel quel (en français).
+- Tests : `tests/test_report_lang.py`, `tests/e2e/i18n.js` (couverture : aucun texte d'interface laissé en français en mode anglais).
+
 ## Application Android (en préparation pour Google Play)
 Client natif du serveur de l'utilisateur : enregistreur en service de premier plan (écran verrouillé, appels, mode avion), partage depuis Outlook / Word /
 Excel / PDF / liens, interface web intégrée. Code dans `android/` (noyau Kotlin testé + module `:app`), CI `android`, essai local : `docs/ESSAI_LOCAL.md`,

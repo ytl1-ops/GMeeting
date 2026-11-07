@@ -23,7 +23,7 @@ FORMATS = {
 NAVY = "1F3A5F"  # couleur par défaut ; surchargée par le gabarit (branding)
 PRIO_ORDER = {"haute": 0, "moyenne": 1, "basse": 2}
 
-from . import annexes
+from . import annexes, labels
 
 Block = dict[str, Any]
 DEFAULT_BRAND: dict[str, Any] = {"org_name": "", "header_right": "", "footer": "", "confidential": "",
@@ -170,11 +170,19 @@ def _first_sentence(text: str, limit: int = 220) -> str:
     return s if len(s) <= limit else s[: limit - 1].rstrip() + "…"
 
 
-BUILDERS = {"pv": build_pv, "cr": build_cr, "note": build_note}
+def _localized(f):
+    """Rend le builder indifférent à la langue : les intitulés fixes sont traduits selon la langue du rapport (`_lang`)."""
+    def g(a: dict) -> list[Block]:
+        return labels.tr_deep(f(a), labels.of(a))
+    g.__name__ = f.__name__
+    return g
+
+
+BUILDERS = {"pv": _localized(build_pv), "cr": _localized(build_cr), "note": _localized(build_note)}
 
 
 def _footer_text(a: dict, doc_type: str) -> str:
-    return f"{DOC_TYPES[doc_type]} — {a['titre']}" + (f" — {a['date']}" if a["date"] else "")
+    return f"{labels.tr(DOC_TYPES[doc_type], labels.of(a))} — {a['titre']}" + (f" — {a['date']}" if a["date"] else "")
 
 
 # ------------------------------------------------------------------ PDF
@@ -258,7 +266,7 @@ def render_pdf(blocks: list[Block], footer: str, brand: dict, assets: dict[str, 
         canvas.setFont("Helvetica", 8)
         canvas.setFillColor(colors.grey)
         canvas.drawString(2 * cm, 1.2 * cm, (brand["footer"] or footer)[:110])
-        canvas.drawRightString(A4[0] - 2 * cm, 1.2 * cm, f"Page {doc.page}")
+        canvas.drawRightString(A4[0] - 2 * cm, 1.2 * cm, f"{labels.tr('Page', brand.get('_lang', 'fr'))} {doc.page}")
         if brand["confidential"]:
             canvas.setFillColor(colors.HexColor("#C0392B")); canvas.setFont("Helvetica-Bold", 8)
             canvas.drawCentredString(A4[0] / 2, 0.75 * cm, brand["confidential"])
@@ -311,7 +319,7 @@ def render_docx(blocks: list[Block], footer: str, brand: dict, assets: dict[str,
 
     # pied de page
     fp = sec.footer.paragraphs[0]
-    fp.text = (brand["footer"] or footer) + "  —  Page "
+    fp.text = (brand["footer"] or footer) + "  —  " + labels.tr("Page", brand.get("_lang", "fr")) + " "
     for kind, txt in (("begin", None), (None, "PAGE"), ("end", None)):
         run = fp.add_run()
         if kind:
@@ -452,7 +460,7 @@ def render_xlsx(blocks: list[Block], title: str, transcript: str | None = None, 
             ws.row_dimensions[r_].height = 20
         row = 5
     ws.oddFooter.left.text = brand["footer"] or title
-    ws.oddFooter.right.text = "Page &P / &N"
+    ws.oddFooter.right.text = labels.tr("Page", (brand or {}).get("_lang", "fr")) + " &P / &N"
     if brand["confidential"]:
         ws.oddFooter.center.text = brand["confidential"]
     for blk in blocks:
@@ -495,7 +503,7 @@ def render_xlsx(blocks: list[Block], title: str, transcript: str | None = None, 
                 s.column_dimensions[get_column_letter(i)].width = max(10, round(w * 120))
             s.freeze_panes = "A2"
             s.auto_filter.ref = f"A1:{get_column_letter(len(blk['headers']))}{len(blk['rows']) + 1}"
-            ws.cell(row, 1, f"→ voir l'onglet « {name} » ({len(blk['rows'])} ligne(s))").font = Font(italic=True, color="666666"); row += 1
+            ws.cell(row, 1, labels.tr(f"→ voir l'onglet « {name} » ({len(blk['rows'])} ligne(s))", (brand or {}).get("_lang", "fr"))).font = Font(italic=True, color="666666"); row += 1
         elif t == "image":
             data = (assets or {}).get(blk["id"])
             if data:
@@ -508,8 +516,9 @@ def render_xlsx(blocks: list[Block], title: str, transcript: str | None = None, 
         elif t in ("signatures", "pagebreak"):
             pass
     if transcript:
-        s = wb.create_sheet("Transcription")
-        s.append(["Horodatage", "Texte"])
+        _lg = (brand or {}).get("_lang", "fr")
+        s = wb.create_sheet(labels.tr("Transcription", _lg))
+        s.append([labels.tr("Horodatage", _lg), labels.tr("Texte", _lg)])
         for c in s[1]:
             c.font = white_bold; c.fill = head_fill
         for line in transcript.splitlines():
@@ -534,7 +543,7 @@ def export(analysis: dict, doc_type: str, fmt: str, transcript: str | None = Non
         raise ValueError(f"Format inconnu : {fmt}")
     if (doc_type in DECKS) != (fmt == "pptx"):
         raise ValueError("Les présentations s'exportent en .pptx ; les autres documents en PDF, Word ou Excel.")
-    brand = brand or DEFAULT_BRAND
+    brand = {**(brand or DEFAULT_BRAND), "_lang": labels.of(analysis)}
     footer = _footer_text(analysis, doc_type)
     if doc_type in DECKS:
         from . import pptx_export, slides

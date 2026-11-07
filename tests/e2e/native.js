@@ -30,7 +30,7 @@ const FAKE = () => {
 
 (async () => {
   const b = await chromium.launch();
-  const ctx = await b.newContext({ viewport: { width: 420, height: 800 } });
+  const ctx = await b.newContext({ locale: 'fr-FR', viewport: { width: 420, height: 800 } });
   const p = await ctx.newPage(); const errs = [];
   p.on('pageerror', e => errs.push(e.message));
   await p.addInitScript(FAKE);

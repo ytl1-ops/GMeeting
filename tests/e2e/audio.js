@@ -5,7 +5,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms)); let fails = 0;
 const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) fails++; };
 (async () => {
   const b = await chromium.launch({ args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] });
-  const ctx = await b.newContext({ permissions: ['microphone'] }); const p = await ctx.newPage();
+  const ctx = await b.newContext({ locale: 'fr-FR', permissions: ['microphone'] }); const p = await ctx.newPage();
   await p.goto(B + '/'); await p.waitForSelector('.rec-btn');
   const base = await p.evaluate(async () => { const s = await navigator.mediaDevices.getUserMedia({ audio: true }); const r = new MediaRecorder(s); let n = 0;
     r.ondataavailable = e => n += e.data.size; r.start(1000); await new Promise(x => setTimeout(x, 6000)); r.stop(); await new Promise(x => setTimeout(x, 300)); s.getTracks().forEach(t => t.stop()); return n; });

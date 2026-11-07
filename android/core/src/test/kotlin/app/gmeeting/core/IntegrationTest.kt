@@ -54,7 +54,7 @@ class IntegrationTest {
     @Test fun `enregistrement natif complet contre le vrai serveur - demarre il y a une heure, hors-ligne puis rattrape`() {
         val store = SessionStore(File(tmp, "data"))
         val startedAt = Instant.now().minusSeconds(3600)
-        val s = store.create(mapOf("title" to "Réunion native", "language" to "fr"), now = startedAt)
+        val s = store.create(mapOf("title" to "Réunion native", "language" to "fr", "report_lang" to "en"), now = startedAt)
         segmentsOf(store, s.id, 2)
         // 1) pas de réseau : rien n'est perdu
         assertTrue(Uploader(store, GMeetingApi(ServerConfig("http://127.0.0.1:1", pw))).drain(s.id) is DrainResult.Retry)
@@ -68,6 +68,8 @@ class IntegrationTest {
         val m = waitDone(s.id)
         assertEquals("done", m["status"].asString, m["error"]?.toString())
         assertEquals("Réunion native", m["title"].asString)
+        assertEquals("en", m["report_lang"].asString, "la langue du rapport choisie sur le téléphone arrive jusqu'au serveur")
+        assertEquals("en", m["analysis"].asJsonObject["_lang"].asString)
         assertTrue(m["duration"].asDouble in 1.5..3.5, "durée ${m["duration"]} : deux segments de 1 s assemblés")
         val ctx = m["context"].asString
         assertTrue("Moments marqués" in ctx && "Interruptions techniques" in ctx && "appel téléphonique" in ctx, ctx)

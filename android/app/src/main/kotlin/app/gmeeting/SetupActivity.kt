@@ -33,13 +33,13 @@ class SetupActivity : Activity() {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(48), dp(24), dp(24)) }
         col.addView(TextView(this).apply { text = "GMeeting"; textSize = 28f; setTypeface(null, Typeface.BOLD); setTextColor(getColor(R.color.brand)) })
         col.addView(TextView(this).apply {
-            text = "Connectez l'application à votre serveur GMeeting. Vos réunions restent chez vous : l'application n'envoie rien ailleurs."
+            text = getString(R.string.setup_intro)
             textSize = 15f; setPadding(0, dp(8), 0, dp(24))
         })
-        url = EditText(this).apply { hint = "Adresse (ex. reunions.exemple.fr)"; inputType = InputType.TYPE_TEXT_VARIATION_URI or InputType.TYPE_CLASS_TEXT; setSingleLine() }
-        pw = EditText(this).apply { hint = "Mot de passe"; inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD; setSingleLine() }
+        url = EditText(this).apply { hint = getString(R.string.setup_url_hint); inputType = InputType.TYPE_TEXT_VARIATION_URI or InputType.TYPE_CLASS_TEXT; setSingleLine() }
+        pw = EditText(this).apply { hint = getString(R.string.setup_pw_hint); inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD; setSingleLine() }
         GMeetingApp.from(this).secure.load()?.let { url.setText(it.root) }
-        go = Button(this).apply { text = "Se connecter"; setOnClickListener { connect() } }
+        go = Button(this).apply { text = getString(R.string.setup_connect); setOnClickListener { connect() } }
         status = TextView(this).apply { textSize = 14f; setPadding(0, dp(16), 0, 0) }
         col.addView(url); col.addView(pw); col.addView(go); col.addView(status)
         setContentView(ScrollView(this).apply { addView(col, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT) })
@@ -55,18 +55,18 @@ class SetupActivity : Activity() {
         // version de test : une adresse du réseau local (192.168.x.x:8000) se saisit sans « http:// »
         if (BuildConfig.DEBUG && !raw.contains("://") && Regex("^((\\d{1,3}\\.){3}\\d{1,3}|localhost)(:\\d+)?(/.*)?$").matches(raw)) raw = "http://$raw"
         val base = ServerConfig.normalizeUrl(raw, allowHttp = BuildConfig.DEBUG)
-        if (base == null) { say("Adresse invalide. Exemple : reunions.exemple.fr (HTTPS obligatoire)."); return }
+        if (base == null) { say(getString(R.string.setup_err_url)); return }
         val password = pw.text.toString()
-        if (password.isEmpty()) { say("Saisissez le mot de passe du serveur."); return }
-        go.isEnabled = false; say("Vérification…", false)
+        if (password.isEmpty()) { say(getString(R.string.setup_err_pw_empty)); return }
+        go.isEnabled = false; say(getString(R.string.setup_checking), false)
         val cfg = ServerConfig(base, password)
         Thread {
             val msg: String? = try { GMeetingApi(cfg).checkServer(); null }
-            catch (e: UnauthorizedException) { "Mot de passe refusé par le serveur." }
-            catch (e: ApiException) { e.message ?: "Réponse inattendue du serveur." }
-            catch (e: SSLException) { "Certificat HTTPS non reconnu : vérifiez l'adresse et le certificat du serveur." }
-            catch (e: IOException) { "Serveur injoignable : vérifiez l'adresse et votre connexion." }
-            catch (e: Exception) { "Réponse inattendue du serveur." }
+            catch (e: UnauthorizedException) { getString(R.string.setup_err_unauthorized) }
+            catch (e: ApiException) { getString(R.string.setup_err_api, e.code) }
+            catch (e: SSLException) { getString(R.string.setup_err_ssl) }
+            catch (e: IOException) { getString(R.string.setup_err_unreachable) }
+            catch (e: Exception) { getString(R.string.setup_err_unexpected) }
             runOnUiThread {
                 go.isEnabled = true
                 if (msg != null) { say(msg); return@runOnUiThread }

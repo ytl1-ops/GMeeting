@@ -10,7 +10,7 @@ SERVER=$!
 trap 'kill $SERVER 2>/dev/null' EXIT
 sleep 3
 rc=0
-for t in continuity decks audio native; do echo "== $t"; node "tests/e2e/$t.js" || rc=1; done
+for t in continuity decks audio native i18n; do echo "== $t"; node "tests/e2e/$t.js" || rc=1; done
 echo "== attachments"; FILES_DIR="$PJ" node tests/e2e/attachments.js || rc=1
 echo; [ $rc -eq 0 ] && echo "TOUS LES SCÉNARIOS NAVIGATEUR PASSENT" || echo "ÉCHEC(S) DANS LES SCÉNARIOS NAVIGATEUR"
 exit $rc

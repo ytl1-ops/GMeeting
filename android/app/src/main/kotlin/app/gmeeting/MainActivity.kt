@@ -94,13 +94,15 @@ class MainActivity : Activity() {
     /** Serveur injoignable (mode avion…) : l'enregistrement reste possible, il sera envoyé au retour du réseau. */
     private fun showOffline() {
         val c = cfg ?: return
+        fun h(id: Int) = android.text.TextUtils.htmlEncode(getString(id))          // texte affiché
+        fun j(id: Int) = org.json.JSONObject.quote(getString(id))                  // chaîne JavaScript
         val html = """<meta name=viewport content="width=device-width,initial-scale=1"><body style="font-family:sans-serif;padding:24px;text-align:center">
-            <h2>Serveur injoignable</h2><p>Vous pouvez quand même enregistrer : l'audio est conservé sur le téléphone et envoyé au retour du réseau.</p>
-            <p><button id=s style="font-size:18px;padding:14px 22px">● Enregistrer</button></p><p><button id=e style="font-size:18px;padding:14px 22px">■ Terminer</button></p>
-            <p id=t></p><p><button onclick="location.reload()">Réessayer la connexion</button></p>
+            <h2>${h(R.string.offline_title)}</h2><p>${h(R.string.offline_body)}</p>
+            <p><button id=s style="font-size:18px;padding:14px 22px">${h(R.string.offline_record)}</button></p><p><button id=e style="font-size:18px;padding:14px 22px">${h(R.string.offline_finish)}</button></p>
+            <p id=t></p><p><button onclick="location.reload()">${h(R.string.offline_retry)}</button></p>
             <script>const N=window.GMeetingNative;const t=document.getElementById('t');
-            document.getElementById('s').onclick=()=>{ if(!N||!N.hasMicPermission()){ if(N)N.requestPermissions(); t.textContent='Autorisez le micro puis réessayez.'; return;} N.start('{}',32); t.textContent='Enregistrement en cours…'};
-            document.getElementById('e').onclick=()=>{ if(N){N.finish('{}'); t.textContent='Terminé : envoi dès que le réseau revient.'}};</script></body>"""
+            document.getElementById('s').onclick=()=>{ if(!N||!N.hasMicPermission()){ if(N)N.requestPermissions(); t.textContent=${j(R.string.offline_need_perm)}; return;} N.start('{}',32); t.textContent=${j(R.string.offline_recording)}};
+            document.getElementById('e').onclick=()=>{ if(N){N.finish('{}'); t.textContent=${j(R.string.offline_finished)}}};</script></body>"""
         trustedPage = true
         web.loadDataWithBaseURL(c.root + "/offline", html, "text/html", "utf-8", null)
     }
@@ -120,7 +122,7 @@ class MainActivity : Activity() {
         when {
             url.startsWith("data:text/plain") -> saveText(url, name)
             sameHost(Uri.parse(url)) -> startDownload(Uri.parse(url), c, name, mime, ua)
-            else -> Toast.makeText(this, "Téléchargement refusé : adresse étrangère au serveur", Toast.LENGTH_LONG).show()
+            else -> Toast.makeText(this, getString(R.string.main_dl_foreign), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -140,9 +142,9 @@ class MainActivity : Activity() {
                 .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name)
             ua?.let { r.addRequestHeader("User-Agent", it) }
             getSystemService(DownloadManager::class.java).enqueue(r)
-            Toast.makeText(this, "Téléchargement de $name : touchez la notification pour l'ouvrir", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.main_dl_started, name), Toast.LENGTH_LONG).show()
         } catch (e: Exception) {
-            Toast.makeText(this, "Téléchargement impossible : ${e.message?.take(80)}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.main_dl_failed, e.message?.take(80) ?: ""), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -161,9 +163,9 @@ class MainActivity : Activity() {
                 val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).apply { mkdirs() }
                 java.io.File(dir, fileName).writeText(text)
             }
-            Toast.makeText(this, "Enregistré dans Téléchargements : $fileName", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.main_saved_txt, fileName), Toast.LENGTH_LONG).show()
         } catch (e: Exception) {
-            Toast.makeText(this, "Enregistrement impossible : ${e.message?.take(80)}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.main_save_failed, e.message?.take(80) ?: ""), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -178,7 +180,7 @@ class MainActivity : Activity() {
         if (code == REQ_STORAGE) {
             val p = pendingDownload; pendingDownload = null; val c = cfg
             if (p != null && c != null && res.firstOrNull() == android.content.pm.PackageManager.PERMISSION_GRANTED) startDownload(p.uri, c, p.name, p.mime, p.ua)
-            else Toast.makeText(this, "Autorisez le stockage pour enregistrer les documents (Réglages → Applications → GMeeting).", Toast.LENGTH_LONG).show()
+            else Toast.makeText(this, getString(R.string.main_storage_needed), Toast.LENGTH_LONG).show()
         }
         if (code == REQ_PERM && cfg != null) web.evaluateJavascript("window.dispatchEvent(new Event('gmeeting-permissions'))", null)
     }

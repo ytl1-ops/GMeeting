@@ -151,6 +151,12 @@ def suivi_table(analysis: dict) -> Block | None:
 
 
 def tail_blocks(atts: list[dict], analysis: dict, rows_limit: int = 25, cols_limit: int = 8) -> list[Block]:
+    """Annexes dans la langue du rapport."""
+    from . import labels
+    return labels.tr_deep(_tail_blocks(atts, analysis, rows_limit, cols_limit), labels.of(analysis))
+
+
+def _tail_blocks(atts: list[dict], analysis: dict, rows_limit: int = 25, cols_limit: int = 8) -> list[Block]:
     """Fin de rapport : annexes complètes ; sans annexes, la liste des pièces citées (pour que « PJ 2 » reste compréhensible)."""
     if atts:
         return build_blocks(atts, analysis, rows_limit, cols_limit)

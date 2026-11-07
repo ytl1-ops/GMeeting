@@ -63,7 +63,7 @@ def init() -> None:
         c.executescript(SCHEMA)
         c.executescript(CREATE_ATTACHMENTS)
         cols = {r[1] for r in c.execute("PRAGMA table_info(meetings)")}
-        for col in ("analyzed_atts", "analyzed_at"):          # migration des bases existantes
+        for col in ("analyzed_atts", "analyzed_at", "report_lang"):          # migration des bases existantes
             if col not in cols:
                 c.execute(f"ALTER TABLE meetings ADD COLUMN {col} TEXT")
 

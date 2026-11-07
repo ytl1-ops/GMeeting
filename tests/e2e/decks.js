@@ -4,7 +4,7 @@ const { chromium } = require('playwright'); const fs = require('fs'); const os =
 const B = process.env.BASE_URL || 'http://127.0.0.1:8765'; let fails = 0;
 const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) fails++; };
 (async () => {
-  const b = await chromium.launch(); const ctx = await b.newContext({ acceptDownloads: true, viewport: { width: 1100, height: 900 } }); const p = await ctx.newPage();
+  const b = await chromium.launch(); const ctx = await b.newContext({ locale: 'fr-FR', acceptDownloads: true, viewport: { width: 1100, height: 900 } }); const p = await ctx.newPage();
   const errs = []; p.on('pageerror', e => errs.push(e.message)); p.on('console', m => m.type() === 'error' && errs.push(m.text()));
   await p.goto(B + '/'); await p.click('.tab:has-text("Texte")'); await p.fill('#t-text', '[00:00:01] Bonjour');
   await p.click('text=Générer les documents'); await p.waitForSelector('.doc', { timeout: 30000 });
