@@ -113,15 +113,58 @@ class MainActivity : Activity() {
         override fun onPermissionRequest(request: android.webkit.PermissionRequest) { request.deny() }     // le micro passe par le service natif, pas par la page
     }
 
+    /** Téléchargement d'un rendu (PDF, Word, Excel, PowerPoint) vers « Téléchargements » : avec le mot de passe, jamais vers un autre serveur. */
     private fun download() = DownloadListener { url, ua, cd, mime, _ ->
         val c = cfg ?: return@DownloadListener
-        if (!sameHost(Uri.parse(url))) return@DownloadListener
         val name = URLUtil.guessFileName(url, cd, mime)
-        val r = DownloadManager.Request(Uri.parse(url)).setMimeType(mime).addRequestHeader("Authorization", c.authHeader()).addRequestHeader("User-Agent", ua)
-            .setTitle(name).setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name)
-        getSystemService(DownloadManager::class.java).enqueue(r)
-        Toast.makeText(this, "Téléchargement : $name", Toast.LENGTH_SHORT).show()
+        when {
+            url.startsWith("data:text/plain") -> saveText(url, name)
+            sameHost(Uri.parse(url)) -> startDownload(Uri.parse(url), c, name, mime, ua)
+            else -> Toast.makeText(this, "Téléchargement refusé : adresse étrangère au serveur", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private class Pending(val uri: Uri, val name: String, val mime: String?, val ua: String?)
+    private var pendingDownload: Pending? = null
+
+    private fun startDownload(uri: Uri, c: ServerConfig, name: String, mime: String?, ua: String?) {
+        // Android 8 et 9 : écrire dans « Téléchargements » exige l'autorisation de stockage (inutile à partir d'Android 10)
+        if (Build.VERSION.SDK_INT < 29 && checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            pendingDownload = Pending(uri, name, mime, ua)
+            requestPermissions(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), REQ_STORAGE)
+            return
+        }
+        try {
+            val r = DownloadManager.Request(uri).setMimeType(mime).addRequestHeader("Authorization", c.authHeader())
+                .setTitle(name).setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name)
+            ua?.let { r.addRequestHeader("User-Agent", it) }
+            getSystemService(DownloadManager::class.java).enqueue(r)
+            Toast.makeText(this, "Téléchargement de $name : touchez la notification pour l'ouvrir", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Téléchargement impossible : ${e.message?.take(80)}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    /** Lien « .txt » de la transcription (adresse data:) : enregistré dans Téléchargements. */
+    private fun saveText(dataUrl: String, name: String) {
+        try {
+            val text = Uri.decode(dataUrl.substringAfter(','))
+            val fileName = if (name.endsWith(".txt")) name else "transcription.txt"
+            if (Build.VERSION.SDK_INT >= 29) {
+                val v = android.content.ContentValues().apply {
+                    put(android.provider.MediaStore.Downloads.DISPLAY_NAME, fileName); put(android.provider.MediaStore.Downloads.MIME_TYPE, "text/plain")
+                }
+                val u = contentResolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, v) ?: error("stockage indisponible")
+                contentResolver.openOutputStream(u)!!.use { it.write(text.toByteArray()) }
+            } else {
+                val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).apply { mkdirs() }
+                java.io.File(dir, fileName).writeText(text)
+            }
+            Toast.makeText(this, "Enregistré dans Téléchargements : $fileName", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Enregistrement impossible : ${e.message?.take(80)}", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun askPermissions() {
@@ -132,6 +175,11 @@ class MainActivity : Activity() {
 
     override fun onRequestPermissionsResult(code: Int, perms: Array<out String>, res: IntArray) {
         super.onRequestPermissionsResult(code, perms, res)
+        if (code == REQ_STORAGE) {
+            val p = pendingDownload; pendingDownload = null; val c = cfg
+            if (p != null && c != null && res.firstOrNull() == android.content.pm.PackageManager.PERMISSION_GRANTED) startDownload(p.uri, c, p.name, p.mime, p.ua)
+            else Toast.makeText(this, "Autorisez le stockage pour enregistrer les documents (Réglages → Applications → GMeeting).", Toast.LENGTH_LONG).show()
+        }
         if (code == REQ_PERM && cfg != null) web.evaluateJavascript("window.dispatchEvent(new Event('gmeeting-permissions'))", null)
     }
 
@@ -154,5 +202,6 @@ class MainActivity : Activity() {
         private val PATH = Regex("/(m/[0-9a-zA-Z]{1,32}|\\?pj=[0-9a-f,]{1,300})")
         private const val REQ_FILE = 11
         private const val REQ_PERM = 12
+        private const val REQ_STORAGE = 13
     }
 }
