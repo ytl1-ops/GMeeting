@@ -13,6 +13,8 @@ class NativeBridge(
     private val ctx: Context,
     private val isTrusted: () -> Boolean,
     private val askPermissions: () -> Unit,
+    private val readSecure: () -> Boolean = { true },
+    private val writeSecure: (Boolean) -> Unit = {},
 ) {
     private val gson = Gson()
 
@@ -34,6 +36,10 @@ class NativeBridge(
         RecordingService.begin(ctx, s.id, kbps)
         return s.id
     }
+
+    /** Écran protégé : aperçu masqué dans les applications récentes et captures d'écran bloquées (réglage mémorisé, activé par défaut). */
+    @JavascriptInterface fun isSecureScreen(): Boolean = isTrusted() && readSecure()
+    @JavascriptInterface fun setSecureScreen(on: Boolean) { if (isTrusted()) writeSecure(on) }
 
     @JavascriptInterface fun pause() { if (isTrusted()) RecordingService.send(ctx, RecordingService.ACTION_PAUSE) }
     @JavascriptInterface fun resume() { if (isTrusted()) RecordingService.send(ctx, RecordingService.ACTION_RESUME) }

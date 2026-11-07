@@ -43,6 +43,7 @@ async function route() {
   stopPoll(); stopRecorderCleanup();
   const m = location.hash.match(/^#\/m\/(\w+)/);
   if (location.hash === "#/brand") await viewBrand();
+  else if (location.hash === "#/privacy") await viewPrivacy();
   else m ? await viewMeeting(m[1]) : await viewHome();
 }
 
@@ -391,6 +392,42 @@ async function docView(host, id, type) {
     if (Array.isArray(blocks)) host.replaceChildren(exp, brandBand(br), renderBlocks(blocks), brandFoot(br));
     else host.replaceChildren(exp, el("p", { class: "hint" }, `${blocks.slides.length} diapositives. Aperçu simplifié : le fichier PowerPoint contient les pictogrammes vectoriels modifiables, les images et les graphiques natifs${blocks.visual ? "" : " (version sobre : texte et tableaux)"}.`), renderSlides(blocks, br));
   } catch (e) { host.append(el("div", { class: "err" }, e.message)); }
+}
+
+/* ============================================================ CONFIDENTIALITÉ */
+async function viewPrivacy() {
+  let p; try { p = await api("/privacy"); } catch (e) { $app.replaceChildren(el("p", {}, el("a", { href: "#/" }, "← Retour")), el("p", { class: "err" }, e.message)); return; }
+  const sec = (title, ...items) => el("section", { class: "card", style: "margin:12px 0" }, el("h3", { style: "margin-top:0" }, title), ...items);
+  const ok = (t) => el("p", {}, "✅ " + t), warn = (t) => el("p", { class: "err" }, "⚠ " + t), info = (t) => el("p", {}, t);
+  const where = sec("Où sont vos données",
+    info("Vos réunions, enregistrements, transcriptions et documents sont stockés sur le serveur GMeeting que vous utilisez : le vôtre ou celui de votre organisation."),
+    info("L'éditeur de l'application n'en reçoit aucune copie. Aucune publicité, aucun outil de mesure d'audience."));
+  const ai = sec("Ce qui est envoyé à un service d'IA",
+    p.ai_drafting.enabled ? info("Pour rédiger les comptes rendus, le texte de la réunion (transcription, contexte et pièces jointes incluses) est envoyé au service d'IA Anthropic configuré sur ce serveur.")
+      : ok("La rédaction par IA n'est pas configurée sur ce serveur : aucun texte n'est envoyé."),
+    p.transcription.audio_leaves_server ? warn("L'audio de vos réunions est envoyé au service de transcription OpenAI pour être transcrit.")
+      : ok("La transcription est faite sur ce serveur : l'audio ne le quitte pas."),
+    info("Ces services agissent comme sous-traitants : leurs conditions s'appliquent. Informez les participants avant d'enregistrer (le RGPD demande d'informer les personnes dont la voix est enregistrée)."));
+  const keep = sec("Combien de temps",
+    p.retention_days > 0 ? ok(`Les réunions sont supprimées automatiquement après ${p.retention_days} jours.`) : info("Aucune suppression automatique des réunions : elles restent jusqu'à ce que vous les supprimiez."),
+    p.keep_audio ? info("L'audio compact de chaque réunion est conservé pour la réécoute.") : ok("L'audio est supprimé après la rédaction : seuls le texte et les documents restent."),
+    info("Une réunion supprimée l'est définitivement, avec son audio, sa transcription, ses documents et ses pièces jointes."));
+  const access = sec("Qui peut y accéder",
+    p.password_set ? ok("L'accès est protégé par un mot de passe.") : warn("Aucun mot de passe n'est configuré : toute personne qui atteint ce serveur peut lire les réunions. Configurez GMEETING_PASSWORD."),
+    p.https ? ok("La connexion est chiffrée (HTTPS).") : warn("La connexion n'est pas chiffrée (HTTP) : réservez cela à votre réseau local et utilisez HTTPS partout ailleurs."));
+  const share = sec("Partages",
+    info("Quand vous partagez un fichier, un mail ou un lien vers GMeeting depuis une autre application, il est envoyé uniquement à votre serveur (en HTTPS dans la version publiée). La copie temporaire faite sur le téléphone est supprimée aussitôt."),
+    ok("Un document reçu par partage et jamais rattaché à une réunion est supprimé automatiquement au bout de 24 heures."),
+    info("Les documents exportés (PDF, Word, Excel, PowerPoint) sont des fichiers ordinaires enregistrés sur votre appareil : conservez-les et transmettez-les par un canal sûr."),
+    el("p", {}, "Ajoutez une mention de confidentialité sur tous vos documents : ", el("a", { href: "#/brand" }, "🎨 Gabarit")));
+  const parts = [where, ai, keep, access, share];
+  if (window.GMeetingNative?.isAvailable?.() && window.GMeetingNative.isSecureScreen) {
+    const cb = el("input", { type: "checkbox", id: "p-secure" }); cb.checked = !!window.GMeetingNative.isSecureScreen();
+    cb.onchange = () => window.GMeetingNative.setSecureScreen(cb.checked);
+    parts.push(sec("Sur ce téléphone", el("label", {}, cb, " Protéger l'écran : masquer l'aperçu dans les applications récentes et bloquer les captures d'écran")));
+  }
+  parts.push(sec("Vos droits", info("Vous pouvez supprimer une réunion depuis sa fiche. Pour une demande d'accès, de rectification ou d'effacement concernant une personne, adressez-vous à l'administrateur du serveur.")));
+  $app.replaceChildren(el("p", {}, el("a", { href: "#/" }, "← Retour")), el("h1", {}, "Confidentialité et protection des données"), ...parts);
 }
 
 /* ============================================================ GABARIT */

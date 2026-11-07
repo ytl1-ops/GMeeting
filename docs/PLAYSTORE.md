@@ -36,11 +36,15 @@ Application Android = **client du serveur de l'utilisateur** (modèle Nextcloud 
 7. **Signature** : activer Play App Signing ; générer la clé d'envoi (`keytool`), `android/keystore.properties` (jamais versionné).
    Build : `./gradlew :app:bundleRelease -PversionCode=2 -PversionName=1.0.1`.
 
-## Formulaire « Sécurité des données » (réponses proposées, à vérifier)
-- Données collectées par l'éditeur : **aucune** (tout est transmis au serveur choisi par l'utilisateur, non à l'éditeur).
-- Audio et fichiers : transmis uniquement au serveur de l'utilisateur, chiffrés en transit (HTTPS) ; l'utilisateur peut tout supprimer.
-- Pas de partage avec des tiers par l'éditeur ; pas de publicité ; pas d'identifiant publicitaire.
-- Attention : si le serveur de l'utilisateur utilise un fournisseur de transcription/IA tiers, c'est son choix et sa responsabilité (à dire dans la fiche).
+## Formulaire « Sécurité des données » (réponses proposées, à vérifier dans la console)
+- **Point délicat** : l'éditeur ne reçoit aucune donnée, mais l'application **transmet** de l'audio et des fichiers hors de l'appareil (vers le serveur choisi par l'utilisateur).
+  Selon la définition de Google, une donnée transmise hors de l'appareil peut compter comme « collectée » même si elle ne va pas chez l'éditeur. **Déclarer prudemment** :
+  *Fichiers audio* et *Fichiers et documents* → collectés, **chiffrés en transit**, finalité « fonctionnalité de l'application », **suppression possible** par l'utilisateur,
+  non partagés avec des tiers par l'éditeur ; et expliquer dans la description « Partage de données » que la destination est le serveur de l'utilisateur. Vérifier la formulation
+  exacte avec l'assistant de la console et, au besoin, avec le support Google Play.
+- Pas de publicité, pas d'identifiant publicitaire, pas d'analyse d'usage.
+- Si le serveur de l'utilisateur utilise un fournisseur d'IA ou de transcription, c'est son choix et sa responsabilité : c'est dit dans la fiche et dans la page « Confidentialité » de l'application.
+- Guide complet et mesures réelles : `docs/PROTECTION_DONNEES.md` ; politique à publier : `docs/PRIVACY_POLICY.md`.
 
 ## Fiche (français — à traduire en anglais pour l'international)
 - **Titre (≤30)** : GMeeting – Comptes rendus

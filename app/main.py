@@ -218,6 +218,22 @@ def get_config():
             "keep_audio": config.KEEP_AUDIO, "retention_days": config.RETENTION_DAYS, "audio_kbps": config.AUDIO_KBPS, "audio_enhance": config.AUDIO_ENHANCE}
 
 
+@app.get("/api/privacy")
+def get_privacy(request: Request):
+    """État RÉEL de la protection des données de CE serveur (affiché par la page « Confidentialité »). Aucun secret, que des faits."""
+    proto = (request.headers.get("x-forwarded-proto") or request.url.scheme or "").split(",")[0].strip().lower()
+    prov = transcribe.provider()
+    return {
+        "password_set": bool(config.PASSWORD),
+        "https": proto == "https",
+        "ai_drafting": {"enabled": bool(config.ANTHROPIC_API_KEY), "provider": "anthropic"},
+        "transcription": {"provider": prov, "audio_leaves_server": prov != "local"},
+        "retention_days": config.RETENTION_DAYS,
+        "keep_audio": config.KEEP_AUDIO,
+        "staging_hours": 24,
+    }
+
+
 @app.get("/api/meetings")
 def list_meetings():
     return db.list_all()

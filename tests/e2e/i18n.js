@@ -40,6 +40,7 @@ const collect = () => {
   await p.goto(B + '/#/m/' + id); await p.waitForSelector('[role=tab]', { timeout: 20000 }); await sleep(500); await scan('réunion');
   for (const tab of await p.locator('[role=tab]').allTextContents()) { await p.locator('[role=tab]').filter({ hasText: tab }).first().click(); await sleep(600); await scan('réunion/' + tab); }
   await p.goto(B + '/#/brand'); await sleep(900); await scan('gabarit');
+  await p.goto(B + '/#/privacy'); await p.waitForSelector('h1'); await sleep(600); await scan('confidentialité');
   await p.goto(B + '/'); await sleep(500);
   await p.click('.rec-btn'); await p.waitForSelector('text=Finish and generate'); await sleep(900); await scan('enregistrement');
   await p.click('text=Pause'); await sleep(400); await scan('pause'); await p.click('text=Resume'); await sleep(300);

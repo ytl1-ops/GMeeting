@@ -37,6 +37,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         cfg = GMeetingApp.from(this).secure.load()
         if (cfg == null) { startActivity(Intent(this, SetupActivity::class.java)); finish(); return }
+        applySecure(secureOn())
         web = WebView(this)
         setContentView(web)
         web.settings.apply {
@@ -48,7 +49,7 @@ class MainActivity : Activity() {
             setSupportMultipleWindows(false)
         }
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, false)
-        web.addJavascriptInterface(NativeBridge(this, { trustedPage }, { askPermissions() }), "GMeetingNative")
+        web.addJavascriptInterface(NativeBridge(this, { trustedPage }, { askPermissions() }, { secureOn() }, { on -> getSharedPreferences("ui", MODE_PRIVATE).edit().putBoolean("secure", on).apply(); runOnUiThread { applySecure(on) } }), "GMeetingNative")
         web.webViewClient = client()
         web.webChromeClient = chrome()
         web.setDownloadListener(download())
@@ -58,6 +59,12 @@ class MainActivity : Activity() {
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(intent); if (cfg != null) load(intent) }
 
     override fun onSaveInstanceState(out: Bundle) { super.onSaveInstanceState(out); if (cfg != null) web.saveState(out) }
+
+    /** Écran protégé : activé par défaut dans la version publiée (réunions confidentielles) ; désactivé en version de test pour pouvoir capturer l'écran. */
+    private fun secureOn() = getSharedPreferences("ui", MODE_PRIVATE).getBoolean("secure", !BuildConfig.DEBUG)
+    private fun applySecure(on: Boolean) {
+        if (on) window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE) else window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+    }
 
     private fun load(i: Intent?) {
         val c = cfg ?: return

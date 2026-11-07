@@ -37,6 +37,7 @@ PRE = r"""
     if (method === "GET" && (m = path.match(/^\/meetings\/(\w+)$/))) return json(meeting(m[1]));
     if (method === "GET" && /^\/meetings\/\w+\/attachments$/.test(path)) return json(DATA.attachments);
     if (method === "GET" && (m = path.match(/^\/meetings\/\w+\/preview\/(\w+)$/))) return DATA.previews[m[1]] ? json(DATA.previews[m[1]]) : json({ detail: "Aperçu indisponible dans la démo" }, 404);
+    if (method === "GET" && path === "/privacy") return json({ password_set: true, https: true, ai_drafting: { enabled: true, provider: "anthropic" }, transcription: { provider: "local", audio_leaves_server: false }, retention_days: 0, keep_audio: false, staging_hours: 24 });
     if (method === "GET" && path === "/branding") return json(DATA.branding);
     if (method === "PUT" && path === "/branding") { Object.assign(DATA.branding, JSON.parse(opts.body)); return json(DATA.branding); }
     if (method === "POST" && /^\/meetings\/(text|url|audio)$/.test(path)) { const id = rid(); born[id] = { at: Date.now() }; return json({ id }); }
@@ -82,7 +83,7 @@ html{{color-scheme:light}}
 <header class="top">
   <a class="brand" href="#/" aria-label="Accueil GMeeting">GMeeting</a>
   <a id="recbar" class="recbar" href="#/" hidden aria-live="polite"></a>
-  <nav class="nav"><a href="#/brand">Gabarit</a></nav>
+  <nav class="nav"><a href="#/privacy">Confidentialité</a> <a href="#/brand">Gabarit</a></nav>
   <span id="cfg" class="cfg" role="status"></span>
 </header>
 <main id="app" class="wrap"></main>

@@ -25,6 +25,14 @@ POUR LES VRAIES RÉUNIONS
 • Importez aussi un enregistrement existant, un lien vidéo ou un texte
 • Audio mono optimisé pour la voix : net, et des fichiers légers
 
+VOS DONNÉES PROTÉGÉES
+• Accès par mot de passe sur votre serveur, connexion chiffrée (HTTPS)
+• Écran protégé : aperçu masqué dans les applications récentes et captures bloquées (désactivable)
+• Fichiers partagés vers GMeeting : envoyés à votre seul serveur, copie du téléphone effacée aussitôt, supprimés automatiquement après 24 h s'ils ne sont rattachés à aucune réunion
+• Suppression définitive d'une réunion en un geste ; suppression automatique possible après la durée de votre choix
+• Une page « Confidentialité » indique ce que fait réellement votre serveur : transcription locale ou non, service d'IA, durée de conservation
+Pour rédiger, le texte de la réunion est traité par le service d'IA que votre serveur utilise ; pour garder aussi l'audio chez vous, choisissez la transcription locale.
+
 VOS RÉUNIONS RESTENT CHEZ VOUS
 L'application se connecte à VOTRE serveur GMeeting. Nous ne recevons ni vos enregistrements ni vos documents. Aucune publicité, aucun pistage.
 
@@ -54,6 +62,14 @@ BUILT FOR REAL MEETINGS
 • You can also import an existing recording, a video link or text
 • Voice-optimised mono audio: clear sound, small files
 
+YOUR DATA, PROTECTED
+• Password-protected access to your server, encrypted connection (HTTPS)
+• Screen protection: preview hidden in recent apps and screenshots blocked (can be turned off)
+• Files shared to GMeeting: sent only to your own server, the phone's copy erased right away, automatically deleted after 24 h if not attached to a meeting
+• One-tap permanent deletion of a meeting; automatic deletion after the period you choose
+• A Privacy page shows what your server really does: local transcription or not, AI service, retention period
+To draft the report, the meeting text is processed by the AI service your server uses; to keep the audio at home too, choose local transcription.
+
 YOUR MEETINGS STAY WITH YOU
 The app connects to YOUR GMeeting server. We receive neither your recordings nor your documents. No ads, no tracking.
 
@@ -71,6 +87,10 @@ Chaque phrase ci-dessous n'est vraie que si elle a été constatée sur de vrais
 - [ ] « Partagez un mail Outlook… » : testé depuis l'application Outlook Android.
 - [ ] Les captures d'écran viennent du téléphone et montrent un vrai compte rendu, pas les données d'exemple.
 - [ ] Le serveur de démonstration fourni aux relecteurs fonctionne avec de vraies clés IA.
+- [ ] « Écran protégé » : aperçu masqué et captures bloquées vérifiés sur téléphone (version publiée) ; l'interrupteur de la page Confidentialité fonctionne.
+- [ ] « Copie du téléphone effacée aussitôt » : après un partage, le dossier de cache de l'application ne contient plus de fichier ; « supprimés après 24 h » : constaté sur le serveur.
+- [ ] La page Confidentialité de l'application affiche bien l'état réel du serveur de démonstration (HTTPS, mot de passe, transcription).
+- [ ] Politique de confidentialité publiée (URL), éditeur et contact renseignés, et formulaire « Sécurité des données » rempli comme indiqué dans `docs/PLAYSTORE.md`.
 
 ## Formulaires
 - **Catégorie** : Productivité. **Public** : adultes (18+), pas destiné aux enfants.

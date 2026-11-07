@@ -16,7 +16,7 @@
   /* ------------------------------------------------------------------ dictionnaire exact (français → anglais) */
   const EN = {
     // navigation, accueil
-    "Accueil GMeeting": "GMeeting home", "🎨 Gabarit": "🎨 Template", "Gabarit": "Template",
+    "Accueil GMeeting": "GMeeting home", "Retour": "Back", "🎨 Gabarit": "🎨 Template", "Gabarit": "Template",
     "Nouvelle réunion": "New meeting", "Mes réunions": "My meetings", "Aucune réunion pour l'instant.": "No meetings yet.",
     "Hors connexion — la liste des réunions s'affichera au retour du réseau. Vous pouvez néanmoins enregistrer.": "Offline — the meeting list will appear when the network returns. You can still record.",
     "Chargement…": "Loading…", "Sans titre": "Untitled", "Réunion sans titre": "Untitled meeting",
@@ -135,6 +135,43 @@
     "Extraction spécialisée impossible, tentative de téléchargement direct…": "Specialised extraction impossible, trying a direct download…",
     "Lecture des informations du lien…": "Reading the link information…", "Téléchargement de la piste audio…": "Downloading the audio track…",
     "Transcription en cours…": "Transcription in progress…", "Rédaction du PV, du CR et de la note de synthèse…": "Drafting the minutes, the report and the executive summary…",
+    // page Confidentialité
+    "🔒 Confidentialité": "🔒 Privacy", "Confidentialité": "Privacy", "Confidentialité et protection des données": "Privacy and data protection",
+    "Où sont vos données": "Where your data is",
+    "Vos réunions, enregistrements, transcriptions et documents sont stockés sur le serveur GMeeting que vous utilisez : le vôtre ou celui de votre organisation.":
+      "Your meetings, recordings, transcripts and documents are stored on the GMeeting server you use: your own or your organisation's.",
+    "L'éditeur de l'application n'en reçoit aucune copie. Aucune publicité, aucun outil de mesure d'audience.": "The app publisher receives no copy of them. No ads, no analytics tools.",
+    "Ce qui est envoyé à un service d'IA": "What is sent to an AI service",
+    "Pour rédiger les comptes rendus, le texte de la réunion (transcription, contexte et pièces jointes incluses) est envoyé au service d'IA Anthropic configuré sur ce serveur.":
+      "To write the reports, the meeting text (transcript, context and included attachments) is sent to the Anthropic AI service configured on this server.",
+    "La rédaction par IA n'est pas configurée sur ce serveur : aucun texte n'est envoyé.": "AI drafting is not configured on this server: no text is sent.",
+    "L'audio de vos réunions est envoyé au service de transcription OpenAI pour être transcrit.": "The audio of your meetings is sent to the OpenAI transcription service to be transcribed.",
+    "La transcription est faite sur ce serveur : l'audio ne le quitte pas.": "Transcription is done on this server: the audio never leaves it.",
+    "Ces services agissent comme sous-traitants : leurs conditions s'appliquent. Informez les participants avant d'enregistrer (le RGPD demande d'informer les personnes dont la voix est enregistrée).":
+      "These services act as processors: their terms apply. Inform participants before recording (the GDPR requires informing people whose voice is recorded).",
+    "Combien de temps": "How long",
+    "Aucune suppression automatique des réunions : elles restent jusqu'à ce que vous les supprimiez.": "No automatic deletion of meetings: they stay until you delete them.",
+    "L'audio compact de chaque réunion est conservé pour la réécoute.": "A compact copy of each meeting's audio is kept for replay.",
+    "L'audio est supprimé après la rédaction : seuls le texte et les documents restent.": "The audio is deleted after drafting: only the text and documents remain.",
+    "Une réunion supprimée l'est définitivement, avec son audio, sa transcription, ses documents et ses pièces jointes.": "A deleted meeting is gone for good, with its audio, transcript, documents and attachments.",
+    "Qui peut y accéder": "Who can access it",
+    "L'accès est protégé par un mot de passe.": "Access is protected by a password.",
+    "Aucun mot de passe n'est configuré : toute personne qui atteint ce serveur peut lire les réunions. Configurez GMEETING_PASSWORD.":
+      "No password is set: anyone who can reach this server can read the meetings. Set GMEETING_PASSWORD.",
+    "La connexion est chiffrée (HTTPS).": "The connection is encrypted (HTTPS).",
+    "La connexion n'est pas chiffrée (HTTP) : réservez cela à votre réseau local et utilisez HTTPS partout ailleurs.": "The connection is not encrypted (HTTP): keep this for your local network and use HTTPS everywhere else.",
+    "Partages": "Sharing",
+    "Quand vous partagez un fichier, un mail ou un lien vers GMeeting depuis une autre application, il est envoyé uniquement à votre serveur (en HTTPS dans la version publiée). La copie temporaire faite sur le téléphone est supprimée aussitôt.":
+      "When you share a file, an email or a link to GMeeting from another app, it is sent only to your server (over HTTPS in the published version). The temporary copy made on the phone is deleted right away.",
+    "Un document reçu par partage et jamais rattaché à une réunion est supprimé automatiquement au bout de 24 heures.": "A document received by sharing and never attached to a meeting is automatically deleted after 24 hours.",
+    "Les documents exportés (PDF, Word, Excel, PowerPoint) sont des fichiers ordinaires enregistrés sur votre appareil : conservez-les et transmettez-les par un canal sûr.":
+      "Exported documents (PDF, Word, Excel, PowerPoint) are ordinary files saved on your device: keep them safe and send them through a secure channel.",
+    "Ajoutez une mention de confidentialité sur tous vos documents : ": "Add a confidentiality notice to all your documents: ",
+    "Sur ce téléphone": "On this phone",
+    " Protéger l'écran : masquer l'aperçu dans les applications récentes et bloquer les captures d'écran": " Protect the screen: hide the preview in recent apps and block screenshots",
+    "Vos droits": "Your rights",
+    "Vous pouvez supprimer une réunion depuis sa fiche. Pour une demande d'accès, de rectification ou d'effacement concernant une personne, adressez-vous à l'administrateur du serveur.":
+      "You can delete a meeting from its page. For an access, rectification or erasure request concerning a person, contact the server administrator.",
     // erreurs serveur (détails renvoyés par l'API)
     "Erreur inconnue": "Unknown error", "Réunion introuvable": "Meeting not found", "Pièce jointe introuvable": "Attachment not found", "Fichier introuvable": "File not found",
     "Texte vide": "Empty text", "Pas de transcription disponible": "No transcript available", "Analyse non disponible pour cette réunion": "Analysis not available for this meeting",
@@ -180,6 +217,7 @@
     [/^Sous-titres '([\s\S]*)' trouvés, récupération du texte…$/, (m) => `Subtitles '${m[1]}' found, retrieving the text…`],
     [/^Transcription locale… (\d+) %$/, (m) => `Local transcription… ${m[1]}%`],
     [/^Transcription… segment (\d+)\/(\d+)$/, (m) => `Transcription… segment ${m[1]}/${m[2]}`],
+    [/^Les réunions sont supprimées automatiquement après (\d+) jours\.$/, (m) => `Meetings are automatically deleted after ${m[1]} days.`],
     [/^Fichier trop volumineux \(max (\d+) Mo\)$/, (m) => `File too large (max ${m[1]} MB)`],
     [/^Trop de pièces jointes \(maximum (\d+) par réunion\)\.$/, (m) => `Too many attachments (maximum ${m[1]} per meeting).`],
     [/^« ([\s\S]*) » dépasse (\d+) Mo\.$/, (m) => `“${m[1]}” exceeds ${m[2]} MB.`],
@@ -200,6 +238,9 @@
     let out = EN[s] ?? EN[core];
     if (out !== undefined) return EN[s] !== undefined ? out : lead + out + trail;
     for (const [re, f] of P) { const m = core.match(re); if (m) return lead + f(m) + trail; }
+    // pictogramme + texte (« ✅ … », « ⚠ … ») : on traduit le texte et on garde le pictogramme
+    const pm = core.match(/^(✅|⚠|ℹ|⭐|✈|⏸|▶|⬇|↻|●|■)\s+([\s\S]+)$/u);
+    if (pm) { const t = T(pm[2]); if (t !== pm[2]) return lead + pm[1] + " " + t + trail; }
     // texte composé de plusieurs phrases connues (littéraux concaténés dans le code)
     const parts = core.split(/(?<=[.!?…])\s+/);
     if (parts.length > 1) {

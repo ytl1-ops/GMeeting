@@ -18,6 +18,7 @@ class GMeetingApp : Application() {
         // Le processus vient de démarrer : aucun enregistrement n'est en cours. Une session jamais terminée est donc un enregistrement
         // interrompu brutalement (batterie, système) : on la termine pour que ce qui a été capté soit transcrit au lieu d'être perdu.
         Thread {
+            runCatching { java.io.File(cacheDir, "share").deleteRecursively() }     // copies de partage restées après un arrêt brutal : jamais conservées
             runCatching {
                 store.list().filter { !it.finishRequested && it.failedReason == null }.forEach { s ->
                     store.update(s.id) { it.copy(finishRequested = true) }

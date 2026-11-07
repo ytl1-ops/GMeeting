@@ -17,6 +17,7 @@ def purge(days: int | None = None) -> int:
     """Supprime les réunions créées il y a plus de `days` jours, avec audio, archive et pièces jointes. Retourne leur nombre."""
     days = config.RETENTION_DAYS if days is None else days
     if days <= 0:
+        attachments.purge_stale()
         return 0
     limit = (datetime.now() - timedelta(days=days)).isoformat(timespec="seconds")
     removed = 0
@@ -46,15 +47,16 @@ def clean_tmp(max_age_hours: float = 24) -> int:
 
 
 def schedule(every_hours: float = 6) -> None:
-    """Purge au démarrage puis toutes les `every_hours` heures (thread démon)."""
-    clean_tmp()                                   # toujours, même sans rétention : un volume ne doit pas se remplir de résidus
-    if config.RETENTION_DAYS <= 0:
-        return
+    """Nettoyage au démarrage puis toutes les `every_hours` heures (thread démon).
+    Toujours actif, même sans RETENTION_DAYS : les fichiers temporaires et les pièces reçues par un partage mais jamais rattachées à une réunion
+    (zone d'attente) sont effacés après 24 h. Les réunions, elles, ne sont supprimées que si RETENTION_DAYS > 0."""
+    clean_tmp()
+    attachments.purge_stale()
 
     def loop():
         while True:
             try:
-                purge()
+                purge()                           # no-op si RETENTION_DAYS = 0 ; nettoie aussi la zone d'attente
                 clean_tmp()
             except Exception:  # noqa: BLE001  (ne jamais faire tomber le serveur pour une purge)
                 import traceback
