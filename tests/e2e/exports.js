@@ -18,7 +18,7 @@ const need = { pdf: 'pdf', docx: 'zip', xlsx: 'zip', pptx: 'zip' };
 
   const b = await chromium.launch();
   for (const [name, opts] of [['PC', { viewport: { width: 1280, height: 800 } }], ['téléphone', { ...devices['Pixel 7'] }]]) {
-    const ctx = await b.newContext({ ...opts, acceptDownloads: true, httpCredentials: { username: 'gmeeting', password: PW } });
+    const ctx = await b.newContext({ ...opts, locale: 'fr-FR', acceptDownloads: true, httpCredentials: { username: 'gmeeting', password: PW } });
     const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
     await p.goto(B + '/#/m/' + id); await p.waitForSelector('.doc', { timeout: 20000 });
     for (const [tab, label] of [['Procès-verbal', 'pv'], ['Compte rendu', 'cr'], ['Note de synthèse', 'note'], ['Présentation', 'deck'], ['Présentation illustrée', 'deck_visual']]) {

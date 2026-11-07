@@ -114,12 +114,13 @@ class GMeetingApi(private val cfg: ServerConfig, client: OkHttpClient? = null) {
         @SerializedName("started_at") val startedAt: String,
         val title: String, @SerializedName("meeting_date") val meetingDate: String, val location: String,
         val participants: String, val context: String, val language: String,
+        @SerializedName("report_lang") val reportLang: String,
     )
 
     /** Déclare la session. OFFLINE = serveur injoignable ou en erreur : à réessayer (l'enregistrement, lui, continue). */
     fun register(id: String, startedAtIso: String, meta: Map<String, String>): RegisterResult {
         val body = RegisterBody(id, startedAtIso, meta["title"].orEmpty(), meta["meeting_date"].orEmpty(), meta["location"].orEmpty(),
-            meta["participants"].orEmpty(), meta["context"].orEmpty(), meta["language"].orEmpty())
+            meta["participants"].orEmpty(), meta["context"].orEmpty(), meta["language"].orEmpty(), meta["report_lang"].orEmpty())
         val r = req("/api/recordings").post(gson.toJson(body).toRequestBody(JSON)).build()
         try {
             http.newCall(r).execute().use { resp ->
@@ -209,6 +210,6 @@ class GMeetingApi(private val cfg: ServerConfig, client: OkHttpClient? = null) {
     companion object {
         private val JSON = "application/json; charset=utf-8".toMediaType()
         private val OCTET = "application/octet-stream".toMediaType()
-        val META_KEYS = listOf("title", "meeting_date", "location", "participants", "context", "language")
+        val META_KEYS = listOf("title", "meeting_date", "location", "participants", "context", "language", "report_lang")
     }
 }

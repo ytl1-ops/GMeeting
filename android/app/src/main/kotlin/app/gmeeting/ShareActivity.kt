@@ -24,8 +24,9 @@ class ShareActivity : Activity() {
         val names = uris.map { name(it) }
         val mimes = uris.map { contentResolver.getType(it) }
         val action = ShareRouting.classify(mimes, names, text)
-        if (action is ShareAction.Unsupported) { toast("Contenu non pris en charge"); finish(); return }
-        toast("Envoi vers GMeeting…")
+        if (action is ShareAction.Unsupported) { toast(getString(R.string.share_unsupported)); finish(); return }
+        toast(getString(R.string.share_sending))
+        val meta = mapOf("report_lang" to if (java.util.Locale.getDefault().language == "fr") "fr" else "en")     // même règle que l'interface web
         val dir = File(cacheDir, "share").apply { deleteRecursively(); mkdirs() }
         Thread {
             var path: String? = null
@@ -39,19 +40,19 @@ class ShareActivity : Activity() {
                     return n to f
                 }
                 path = when (action) {
-                    is ShareAction.MeetingFromLink -> "/m/" + api.createFromUrl(action.url, emptyMap(), emptyList())
+                    is ShareAction.MeetingFromLink -> "/m/" + api.createFromUrl(action.url, meta, emptyList())
                     is ShareAction.MeetingFromAudio -> {
                         val ids = if (action.attachmentIndexes.isEmpty()) emptyList() else api.uploadAttachments(action.attachmentIndexes.map { copy(it) })
                         val (n, f) = copy(action.audioIndex)
-                        "/m/" + api.createFromAudio(f, n, emptyMap(), ids)
+                        "/m/" + api.createFromAudio(f, n, meta, ids)
                     }
                     is ShareAction.Attachments -> "/?pj=" + api.uploadAttachments(action.indexes.map { copy(it) }).joinToString(",")
                     ShareAction.Unsupported -> null
                 }
             } catch (e: UnauthorizedException) {
-                err = "Mot de passe refusé : reconnectez-vous."
+                err = getString(R.string.share_auth)
                 startActivity(Intent(this, SetupActivity::class.java))
-            } catch (e: Exception) { err = e.message?.take(120) ?: "Échec de l'envoi (réseau ?)" }
+            } catch (e: Exception) { err = e.message?.take(120) ?: getString(R.string.share_failed) }
             finally { dir.deleteRecursively() }
             runOnUiThread {
                 if (err != null) toast(err)

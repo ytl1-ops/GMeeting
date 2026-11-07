@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">GMeeting</string>
+    <string name="notif_channel_recording">Enregistrement en cours</string>
+    <string name="notif_channel_status">Envois et connexion</string>
+    <string name="notif_recording_title">Enregistrement de la réunion</string>
+    <string name="notif_recording_paused">En pause</string>
+    <string name="notif_recording_interrupted">Micro occupé (appel ?) — reprise automatique</string>
+    <string name="notif_action_pause">Pause</string>
+    <string name="notif_action_resume">Reprendre</string>
+    <string name="notif_action_stop">Terminer</string>
+    <string name="notif_auth_title">Reconnexion nécessaire</string>
+    <string name="notif_auth_text">Le serveur refuse le mot de passe : vos enregistrements sont conservés sur le téléphone.</string>
+    <string name="setup_intro">Connectez l\'application à votre serveur GMeeting. Vos réunions restent chez vous : l\'application n\'envoie rien ailleurs.</string>
+    <string name="setup_url_hint">Adresse (ex. reunions.exemple.fr)</string>
+    <string name="setup_pw_hint">Mot de passe</string>
+    <string name="setup_connect">Se connecter</string>
+    <string name="setup_checking">Vérification…</string>
+    <string name="setup_err_url">Adresse invalide. Exemple : reunions.exemple.fr (HTTPS obligatoire).</string>
+    <string name="setup_err_pw_empty">Saisissez le mot de passe du serveur.</string>
+    <string name="setup_err_unauthorized">Mot de passe refusé par le serveur.</string>
+    <string name="setup_err_api">Ce serveur ne répond pas comme GMeeting (HTTP %1$d).</string>
+    <string name="setup_err_ssl">Certificat HTTPS non reconnu : vérifiez l\'adresse et le certificat du serveur.</string>
+    <string name="setup_err_unreachable">Serveur injoignable : vérifiez l\'adresse et votre connexion.</string>
+    <string name="setup_err_unexpected">Réponse inattendue du serveur.</string>
+    <string name="main_dl_foreign">Téléchargement refusé : adresse étrangère au serveur</string>
+    <string name="main_dl_started">Téléchargement de %1$s : touchez la notification pour l\'ouvrir</string>
+    <string name="main_dl_failed">Téléchargement impossible : %1$s</string>
+    <string name="main_saved_txt">Enregistré dans Téléchargements : %1$s</string>
+    <string name="main_save_failed">Enregistrement impossible : %1$s</string>
+    <string name="main_storage_needed">Autorisez le stockage pour enregistrer les documents (Réglages → Applications → GMeeting).</string>
+    <string name="share_unsupported">Contenu non pris en charge</string>
+    <string name="share_sending">Envoi vers GMeeting…</string>
+    <string name="share_auth">Mot de passe refusé : reconnectez-vous.</string>
+    <string name="share_failed">Échec de l\'envoi (réseau ?)</string>
+    <string name="rec_err_permission">Autorisation du micro ou du service refusée</string>
+    <string name="rec_err_mic_busy">Micro indisponible (déjà utilisé par une autre application ?)</string>
+    <string name="rec_err_mic_lost">Le micro est devenu indisponible</string>
+    <string name="offline_title">Serveur injoignable</string>
+    <string name="offline_body">Vous pouvez quand même enregistrer : l\'audio est conservé sur le téléphone et envoyé au retour du réseau.</string>
+    <string name="offline_record">● Enregistrer</string>
+    <string name="offline_finish">■ Terminer</string>
+    <string name="offline_retry">Réessayer la connexion</string>
+    <string name="offline_need_perm">Autorisez le micro puis réessayez.</string>
+    <string name="offline_recording">Enregistrement en cours…</string>
+    <string name="offline_finished">Terminé : envoi dès que le réseau revient.</string>
+</resources>

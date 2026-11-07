@@ -95,13 +95,16 @@ def test_purge_removes_only_old_finished_meetings_with_all_their_data():
 
 
 def test_purge_is_disabled_by_default(monkeypatch):
+    # Sans RETENTION_DAYS, AUCUNE réunion n'est supprimée, quel que soit son âge...
     m, _ = _meeting(900, "done")
     monkeypatch.setattr(config, "RETENTION_DAYS", 0)
     assert retention.purge() == 0 and db.get(m) is not None
+    # ...mais le nettoyage tourne toujours : fichiers temporaires et pièces de partage jamais rattachées (voir tests/test_privacy.py)
     started = []
-    monkeypatch.setattr(threading, "Thread", lambda *a, **k: started.append(1))
+    monkeypatch.setattr(threading, "Thread", lambda *a, **k: type("T", (), {"start": lambda self: started.append(k.get("name"))})())
     retention.schedule()
-    assert started == []                                                  # aucun thread si désactivé
+    assert started == ["retention"]
+    assert db.get(m) is not None
 
 
 def test_temporary_files_go_to_the_data_volume_and_stale_ones_are_cleaned(tmp_path, monkeypatch):

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from . import config
+from . import config, labels
 
 ICONS = ["objectif", "equipe", "planning", "decision", "action", "risque", "idee", "budget", "securite",
          "technique", "communication", "juridique", "qualite", "question", "jalon", "horloge"]
@@ -154,6 +154,22 @@ def _client():
     return anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
 
 
+def system_prompt(lang: str) -> str:
+    """Consigne de rédaction ; pour l'anglais, la langue de SORTIE change, pas les règles."""
+    if labels.norm(lang) != "en":
+        return SYSTEM
+    s = SYSTEM.replace("Rédige en français, quelle que soit la langue source (traduis fidèlement si nécessaire).",
+                       "Rédige en ANGLAIS, quelle que soit la langue source (traduis fidèlement si nécessaire).")
+    return s + """
+
+LANGUE DE SORTIE : ANGLAIS. Tous les champs textuels (titre, objet, résumé, sujets, discussions, décisions, actions, responsables, \
+échéances, risques, questions, messages clés, libellés de chiffres, détails…) sont rédigés en anglais professionnel. Quand une information \
+manque, écris « TBD » à la place de « À définir ». Cite les pièces jointes sous la forme « per attachment 2 » (champ `pj` inchangé). \
+Les valeurs techniques imposées par l'outil (statut d'un participant : présent / excusé / absent ; priorité : haute / moyenne / basse ; \
+constat : confirme / ecart / complement ; statut d'une action antérieure : soldee / en_cours / reportee / non_evoquee ; icones) \
+restent exactement celles du schéma."""
+
+
 def _chunks(text: str, size: int) -> list[str]:
     out, cur, n = [], [], 0
     for line in text.splitlines():
@@ -165,14 +181,14 @@ def _chunks(text: str, size: int) -> list[str]:
     return out
 
 
-def _partial_notes(client, transcript: str, progress) -> str:
+def _partial_notes(client, transcript: str, progress, lang: str = "fr") -> str:
     """Pour les très longues réunions : notes détaillées par tronçon, puis analyse sur les notes."""
     parts = _chunks(transcript, config.MAX_DIRECT_CHARS // 3)
     notes = []
     for i, part in enumerate(parts, 1):
         progress(f"Analyse du tronçon {i}/{len(parts)}…")
         r = client.messages.create(
-            model=config.ANTHROPIC_MODEL, max_tokens=8000, system=SYSTEM,
+            model=config.ANTHROPIC_MODEL, max_tokens=8000, system=system_prompt(lang),
             messages=[{"role": "user", "content":
                        "Extrait de transcription (tronçon %d/%d). Produis des notes détaillées et fidèles : sujets, "
                        "arguments, positions, décisions, actions (qui/quoi/quand), chiffres, noms cités.\n\n%s"
@@ -184,9 +200,10 @@ def _partial_notes(client, transcript: str, progress) -> str:
 
 def analyze(transcript: str, meta: dict[str, Any], progress=lambda m: None, attachments: list[dict] | None = None) -> dict[str, Any]:
     client = _client()
+    lang = labels.norm(meta.get("report_lang"))
     material = transcript
     if len(material) > config.MAX_DIRECT_CHARS:
-        material = _partial_notes(client, material, progress)
+        material = _partial_notes(client, material, progress, lang)
     from . import attachments as att_mod
     pj = att_mod.context_text(attachments or [])
     pj_block = (f"\n\nPièces jointes fournies (documents de référence, pas des propos de la réunion) :\n<pieces_jointes>\n{pj}\n</pieces_jointes>"
@@ -195,7 +212,7 @@ def analyze(transcript: str, meta: dict[str, Any], progress=lambda m: None, atta
     resp = client.messages.create(
         model=config.ANTHROPIC_MODEL,
         max_tokens=16000,
-        system=SYSTEM,
+        system=system_prompt(lang),
         tools=[{"name": "enregistrer_analyse", "description": "Enregistre l'analyse structurée de la réunion.",
                 "input_schema": ANALYSIS_SCHEMA}],
         tool_choice={"type": "tool", "name": "enregistrer_analyse"},
@@ -218,7 +235,9 @@ def normalize(a: dict[str, Any], meta: dict[str, Any]) -> dict[str, Any]:
     for k in ("participants", "ordre_du_jour", "points_abordes", "decisions", "actions",
               "risques_vigilance", "enjeux", "recommandations", "questions_ouvertes", "messages_cles", "chiffres_cles", "annexes", "recoupements", "suivi_anterieur"):
         a[k] = a.get(k) or []
-    a["titre"] = a["titre"] or meta.get("title") or "Réunion"
+    lang = labels.norm(meta.get("report_lang"))
+    a["_lang"] = lang
+    a["titre"] = a["titre"] or meta.get("title") or labels.tr("Réunion", lang)
     a["date"] = a["date"] or meta.get("meeting_date") or ""
     a["lieu"] = a["lieu"] or meta.get("location") or ""
     return a

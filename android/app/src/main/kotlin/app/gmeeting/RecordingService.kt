@@ -103,12 +103,12 @@ class RecordingService : Service() {
             startedWall = System.currentTimeMillis()
             promote(Notifications.recording(this, "recording", startedWall))   // doit suivre immédiatement startForegroundService
         } catch (e: Exception) {
-            return fail("Autorisation du micro ou du service refusée")
+            return fail(getString(R.string.rec_err_permission))
         }
         wake = (getSystemService(Context.POWER_SERVICE) as PowerManager).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "gmeeting:recording")
             .apply { acquire(10 * 3600 * 1000L) }
         clock.start(); log = InterruptionLog(clock)
-        if (!openSegment()) return fail("Micro indisponible (déjà utilisé par une autre application ?)")
+        if (!openSegment()) return fail(getString(R.string.rec_err_mic_busy))
         (getSystemService(Context.AUDIO_SERVICE) as AudioManager).registerAudioRecordingCallback(recCallback, handler)
         setState("recording")
         handler.post(tick)
@@ -229,7 +229,7 @@ class RecordingService : Service() {
         recorder = null
         commit(curIdx, curFile); curFile = null
         nextFile?.delete(); nextFile = null
-        if (!openSegment()) { lastError = "Le micro est devenu indisponible"; finish(null) }
+        if (!openSegment()) { lastError = getString(R.string.rec_err_mic_lost); finish(null) }
     }
 
     private fun stopRecording() {

@@ -32,8 +32,8 @@ class ShareRoutingTest {
     }
 
     @Test fun `le pont lit les metadonnees de facon defensive`() {
-        val m = BridgeJson.parseMeta("""{"title":"  COPIL  ","language":"fr","inconnu":"x","location":"","context":123,"date":null}""")
-        assertEquals(mapOf("title" to "COPIL", "language" to "fr", "context" to "123"), m)           // clés inconnues et valeurs vides écartées
+        val m = BridgeJson.parseMeta("""{"title":"  COPIL  ","language":"fr","report_lang":"en","inconnu":"x","location":"","context":123,"date":null}""")
+        assertEquals(mapOf("title" to "COPIL", "language" to "fr", "report_lang" to "en", "context" to "123"), m)           // clés inconnues et valeurs vides écartées
         assertEquals(300, BridgeJson.parseMeta("""{"title":"${"x".repeat(1000)}"}""")["title"]!!.length)  // bornes de taille
         assertEquals(emptyMap(), BridgeJson.parseMeta("pas du json")); assertEquals(emptyMap(), BridgeJson.parseMeta(null)); assertEquals(emptyMap(), BridgeJson.parseMeta("[1,2]"))
     }

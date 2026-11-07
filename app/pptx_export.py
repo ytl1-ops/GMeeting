@@ -13,6 +13,7 @@ import math
 from typing import Any
 
 from pptx import Presentation
+from . import labels
 from pptx.chart.data import CategoryChartData
 from pptx.dml.color import RGBColor
 from pptx.enum.chart import XL_CHART_TYPE, XL_LEGEND_POSITION
@@ -379,7 +380,7 @@ class Deck:
         s = self.new(self.c["white"]); sh, c = s.shapes, self.c
         if self.visual:
             pic = sh.add_picture(io.BytesIO(art_cover(1600, 900, c)), 0, 0, self.prs.slide_width, self.prs.slide_height)
-            pic._element.nvPicPr.cNvPr.set("descr", "Visuel décoratif aux couleurs de l'organisation")
+            pic._element.nvPicPr.cNvPr.set("descr", labels.tr("Visuel décoratif aux couleurs de l'organisation", self.b.get("_lang", "fr")))
             if self.b["logo"]:
                 self.logo(sh, 0.9, 0.7, 0.7, 2.6, on_dark=True)
             elif self.b["org_name"]:
@@ -455,7 +456,7 @@ class Deck:
             tot = sum(w for _, w in sec) or 1
             for name, wt in sec:
                 hh = min(wt * (bottom - y) / tot, 2.4) - 0.12
-                label, items, col = (d["bullets_label"] or "Points", d["bullets"], c["p"]) if name == "pos" else ("Décisions", d["decisions"], c["green"])
+                label, items, col = (d["bullets_label"] or labels.tr("Points", self.b.get("_lang", "fr")), d["bullets"], c["p"]) if name == "pos" else (labels.tr("Décisions", self.b.get("_lang", "fr")), d["decisions"], c["green"])
                 rect(sh, LM, y + 0.04, 0.07, hh - 0.04, col)
                 text(sh, LM + 0.25, y, 4, 0.3, label.upper(), size=12, bold=True, color=col)
                 pt2 = fit_pt(items, RM - LM - 0.6, hh - 0.35, 22, 12, gap_pt=5)
@@ -466,7 +467,7 @@ class Deck:
         # illustrée : bandeau gauche (image + pictogramme) / contenu à droite
         pw = 4.3
         pic = sh.add_picture(io.BytesIO(art_panel(640, 1120, c, d["number"])), 0, 0, Inches(pw), self.prs.slide_height)
-        pic._element.nvPicPr.cNvPr.set("descr", "Visuel décoratif")
+        pic._element.nvPicPr.cNvPr.set("descr", labels.tr("Visuel décoratif", self.b.get("_lang", "fr")))
         icon(sh, d["icon"], pw / 2 - 0.95, 1.2, 1.9, "FFFFFF", c["p"])
         text(sh, 0.5, 3.45, pw - 1.0, 0.3, f"POINT {d['number']}", size=13, bold=True, color="FFFFFF", align=PP_ALIGN.CENTER)
         pt = fit_pt([d["title"]], pw - 1.0, 2.4, 28, 16, lh=1.15)
@@ -573,7 +574,8 @@ class Deck:
         self.title(s, d["title"], d["icon"])
         cols, cw, ch = 4, (RM - LM) / 4, 2.55
         colors = [c["p"], c["dark"], c["purple"], c["green"], c["amber"], c["mid"]]
-        pills = {"présent": ("green", "green_l"), "excusé": ("amber", "amber_l"), "absent": ("red", "red_l")}
+        pills = {"présent": ("green", "green_l"), "excusé": ("amber", "amber_l"), "absent": ("red", "red_l"),
+                 "present": ("green", "green_l"), "excused": ("amber", "amber_l")}
         n = len(d["people"]); rows = math.ceil(n / cols)
         y_start = 1.7 + (2 - min(rows, 2)) * ch * 0.2
         for i, p in enumerate(d["people"]):
@@ -610,8 +612,10 @@ class Deck:
         pt = 14
         # couleurs sémantiques des colonnes de constat / statut / priorité
         prio_col = {"Haute": c["red"], "Moyenne": c["amber"], "Basse": c["green"], "Écart": c["red"], "Confirmé": c["green"],
-                    "Complément": c["p"], "Soldée": c["green"], "En cours": c["amber"], "Reportée": c["amber"], "Non évoquée": c["red"]}
-        coded = {"Priorité", "Constat", "Statut"}
+                    "Complément": c["p"], "Soldée": c["green"], "En cours": c["amber"], "Reportée": c["amber"], "Non évoquée": c["red"],
+                    "High": c["red"], "Medium": c["amber"], "Low": c["green"], "Gap": c["red"], "Confirmed": c["green"], "Addition": c["p"],
+                    "Closed": c["green"], "In progress": c["amber"], "Postponed": c["amber"], "Not discussed": c["red"]}
+        coded = {"Priorité", "Constat", "Statut", "Priority", "Finding", "Status"}
         def cell(r, ci, txt, header=False, color=None, bold=False):
             ce = tbl.cell(r, ci)
             ce.margin_left = ce.margin_right = Inches(0.1); ce.margin_top = ce.margin_bottom = Inches(0.05)
@@ -639,7 +643,7 @@ class Deck:
         sh = s.shapes
         x, w = 8.85, RM - 8.85
         rect(sh, x, 1.6, w, 2.55 if charts["owners"] else 5.0, "FFFFFF", line=c["line"])
-        text(sh, x + 0.2, 1.68, w - 0.4, 0.3, "RÉPARTITION PAR PRIORITÉ", size=10, bold=True, color=c["mute"])
+        text(sh, x + 0.2, 1.68, w - 0.4, 0.3, labels.tr("RÉPARTITION PAR PRIORITÉ", self.b.get("_lang", "fr")), size=10, bold=True, color=c["mute"])
         cd = CategoryChartData(); cd.categories = ["Haute", "Moyenne", "Basse"]
         pr = charts["priorities"]; cd.add_series("Actions", [pr["haute"], pr["moyenne"], pr["basse"]])
         gf = sh.add_chart(XL_CHART_TYPE.DOUGHNUT, Inches(x + 0.1), Inches(1.95), Inches(w - 0.2), Inches(2.15 if charts["owners"] else 4.55), cd)

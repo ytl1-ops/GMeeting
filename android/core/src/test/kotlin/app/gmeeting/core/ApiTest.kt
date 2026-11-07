@@ -36,13 +36,14 @@ class ApiTest {
     // ------------------------------------------------------------------ déclaration de la session
     @Test fun `register envoie l'identifiant, l'heure de debut et les metadonnees avec l'authentification`() {
         server.enqueue(MockResponse().setBody("""{"id":"abcdef012345"}"""))
-        assertEquals(RegisterResult.OK, api.register("abcdef012345", "2026-11-06T04:00:00Z", mapOf("title" to "COPIL", "language" to "fr")))
+        assertEquals(RegisterResult.OK, api.register("abcdef012345", "2026-11-06T04:00:00Z", mapOf("title" to "COPIL", "language" to "fr", "report_lang" to "en")))
         val r = server.takeRequest()
         assertEquals("POST", r.method); assertEquals("/api/recordings", r.path)
         assertTrue(r.getHeader("Authorization")!!.startsWith("Basic "))
         val b = JsonParser.parseString(r.body.readUtf8()).asJsonObject
         assertEquals("abcdef012345", b["id"].asString); assertEquals("2026-11-06T04:00:00Z", b["started_at"].asString)
         assertEquals("COPIL", b["title"].asString); assertEquals("fr", b["language"].asString); assertEquals("", b["location"].asString)
+        assertEquals("en", b["report_lang"].asString)      // langue des documents : transmise au serveur
     }
 
     @Test fun `register hors-ligne ou serveur en panne donne OFFLINE sans exception`() {

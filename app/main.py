@@ -16,7 +16,7 @@ import shutil
 
 from fastapi import Request
 
-from . import annexes, attachments, branding, config, db, exporters, generate, ingest, pipeline, recordings, retention, security, slides, transcribe
+from . import annexes, attachments, branding, config, db, exporters, generate, ingest, labels, pipeline, recordings, retention, security, slides, transcribe
 
 STATIC = Path(__file__).parent / "static"
 
@@ -49,6 +49,7 @@ def _meeting(mid: str) -> dict:
 
 # ------------------------------------------------------------------ création
 def _create(title, meeting_date, location, participants, context, language, source_type, source_url=None, **extra) -> dict:
+    extra["report_lang"] = labels.norm(extra.get("report_lang"))
     return db.create(title=(title or "").strip(), meeting_date=meeting_date or None, location=location or None,
                      participants=participants or None, context=context or None,
                      language=(language or "").strip() or None, source_type=source_type, source_url=source_url, **extra)
@@ -57,9 +58,10 @@ def _create(title, meeting_date, location, participants, context, language, sour
 @app.post("/api/meetings/audio")
 async def from_audio(bg: BackgroundTasks, file: UploadFile = File(...), title: str = Form(""), meeting_date: str = Form(""),
                      location: str = Form(""), participants: str = Form(""), context: str = Form(""),
-                     language: str = Form(""), source_type: str = Form("upload"), attachment_ids: str = Form("")):
+                     language: str = Form(""), source_type: str = Form("upload"), attachment_ids: str = Form(""),
+                     report_lang: str = Form("")):
     """Enregistrement navigateur ou fichier audio/vidéo importé."""
-    m = _create(title, meeting_date, location, participants, context, language, source_type)
+    m = _create(title, meeting_date, location, participants, context, language, source_type, report_lang=report_lang)
     attachments.link([i for i in attachment_ids.split(",") if i], m["id"])
     dest_dir = config.AUDIO_DIR / m["id"]
     dest_dir.mkdir(parents=True, exist_ok=True)
@@ -85,6 +87,7 @@ class UrlIn(BaseModel):
     participants: str = ""
     context: str = ""
     language: str = ""
+    report_lang: str = ""
     prefer_subtitles: bool = True
     attachment_ids: list[str] = []
 
@@ -95,7 +98,7 @@ def from_url(body: UrlIn, bg: BackgroundTasks):
     if not body.url.lower().startswith(("http://", "https://")):
         raise HTTPException(422, "Le lien doit commencer par http:// ou https://")
     m = _create(body.title, body.meeting_date, body.location, body.participants, body.context, body.language,
-                "url", body.url.strip())
+                "url", body.url.strip(), report_lang=body.report_lang)
     attachments.link(body.attachment_ids, m["id"])
     db.update(m["id"], status="queued", progress="En file d'attente")
     bg.add_task(pipeline.process, m["id"], url=body.url.strip(), prefer_subtitles=body.prefer_subtitles)
@@ -110,6 +113,7 @@ class TextIn(BaseModel):
     participants: str = ""
     context: str = ""
     language: str = ""
+    report_lang: str = ""
     attachment_ids: list[str] = []
 
 
@@ -118,7 +122,7 @@ def from_text(body: TextIn, bg: BackgroundTasks):
     """Transcription déjà disponible (Teams, Zoom, Otter…) : saute directement à la rédaction."""
     if not body.text.strip():
         raise HTTPException(422, "Texte vide")
-    m = _create(body.title, body.meeting_date, body.location, body.participants, body.context, body.language, "text")
+    m = _create(body.title, body.meeting_date, body.location, body.participants, body.context, body.language, "text", report_lang=body.report_lang)
     attachments.link(body.attachment_ids, m["id"])
     db.update(m["id"], status="queued", transcript=body.text, progress="En file d'attente")
     bg.add_task(pipeline.process, m["id"], raw_text=body.text)
@@ -135,6 +139,7 @@ class RecStart(BaseModel):
     participants: str = ""
     context: str = ""
     language: str = ""
+    report_lang: str = ""
 
 
 @app.post("/api/recordings")
@@ -158,7 +163,7 @@ def rec_start(body: RecStart):
         except ValueError:
             pass
     m = _create(body.title, body.meeting_date, body.location, body.participants, body.context, body.language, "record",
-                **extra)
+                report_lang=body.report_lang, **extra)
     db.update(m["id"], status="recording", progress="Enregistrement en cours")
     return {"id": m["id"]}
 
@@ -193,7 +198,9 @@ def rec_finish(mid: str, body: RecFinish, bg: BackgroundTasks):
     if recordings.info(mid)["chunks"] == 0:
         raise HTTPException(409, "Aucun audio reçu pour cet enregistrement")
     fields = {k: v.strip() for k, v in body.meta.items()
-              if k in {"title", "meeting_date", "location", "participants", "context", "language"} and v.strip()}
+              if k in {"title", "meeting_date", "location", "participants", "context", "language", "report_lang"} and v.strip()}
+    if "report_lang" in fields:
+        fields["report_lang"] = labels.norm(fields["report_lang"])
     attachments.link(body.attachment_ids, mid)
     notes = recordings.session_notes(body.markers, body.interruptions)
     if notes and "Moments marqués" not in (m.get("context") or "") and "Interruptions techniques" not in (m.get("context") or ""):
@@ -209,6 +216,22 @@ def get_config():
     return {"transcribe_provider": transcribe.provider(), "has_anthropic": bool(config.ANTHROPIC_API_KEY),
             "has_openai": bool(config.OPENAI_API_KEY), "model": config.ANTHROPIC_MODEL,
             "keep_audio": config.KEEP_AUDIO, "retention_days": config.RETENTION_DAYS, "audio_kbps": config.AUDIO_KBPS, "audio_enhance": config.AUDIO_ENHANCE}
+
+
+@app.get("/api/privacy")
+def get_privacy(request: Request):
+    """État RÉEL de la protection des données de CE serveur (affiché par la page « Confidentialité »). Aucun secret, que des faits."""
+    proto = (request.headers.get("x-forwarded-proto") or request.url.scheme or "").split(",")[0].strip().lower()
+    prov = transcribe.provider()
+    return {
+        "password_set": bool(config.PASSWORD),
+        "https": proto == "https",
+        "ai_drafting": {"enabled": bool(config.ANTHROPIC_API_KEY), "provider": "anthropic"},
+        "transcription": {"provider": prov, "audio_leaves_server": prov != "local"},
+        "retention_days": config.RETENTION_DAYS,
+        "keep_audio": config.KEEP_AUDIO,
+        "staging_hours": 24,
+    }
 
 
 @app.get("/api/meetings")
@@ -247,12 +270,16 @@ class PatchIn(BaseModel):
     context: str | None = None
     transcript: str | None = None
     analysis: dict | None = None
+    report_lang: str | None = None
 
 
 @app.patch("/api/meetings/{mid}")
 def patch_meeting(mid: str, body: PatchIn):
     m = _meeting(mid)
     fields = body.model_dump(exclude_none=True)
+    if "report_lang" in fields:
+        fields["report_lang"] = labels.norm(fields["report_lang"])
+        m = {**m, "report_lang": fields["report_lang"]}
     if "analysis" in fields:
         fields["analysis"] = generate.normalize(fields["analysis"], m)
     db.update(mid, **fields)

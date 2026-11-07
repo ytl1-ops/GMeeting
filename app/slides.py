@@ -14,6 +14,7 @@ import re
 from typing import Any
 
 from . import annexes as annex_mod
+from . import labels
 
 Slide = dict[str, Any]
 PRIO_ORDER = {"haute": 0, "moyenne": 1, "basse": 2}
@@ -25,17 +26,17 @@ ICONS = {"objectif", "equipe", "planning", "decision", "action", "risque", "idee
          "technique", "communication", "juridique", "qualite", "question", "jalon", "horloge"}
 
 _KEYWORDS = [
-    ("budget", r"budget|€|euro|coût|cout|devis|financ|investiss|facture|tarif"),
-    ("securite", r"s[ûu]ret[ée]|s[ée]curit[ée]|intrusion|vid[ée]o|cam[ée]ra|acc[èe]s|incident|gardiennage|surveillance|protection"),
-    ("risque", r"risque|menace|vuln[ée]rab|alerte|crise|danger|sinistre"),
-    ("planning", r"planning|calendrier|d[ée]lai|[ée]ch[ée]ance|date|roadmap|livraison|planif"),
-    ("equipe", r"[ée]quipe|ressources? humaines|recrut|effectif|personnel|organisation|r[ôo]les?"),
-    ("juridique", r"juridique|contrat|r[èe]glement|conformit[ée]|l[ée]gal|loi|audit|norme|assurance"),
-    ("technique", r"technique|syst[èe]me|logiciel|r[ée]seau|infrastructure|\bSI\b|informatique|outil|applicati"),
-    ("communication", r"communication|message|information|sensibilis|reporting|pr[ée]sentation"),
-    ("qualite", r"qualit[ée]|indicateur|kpi|performance|r[ée]sultat|bilan|statistique|tableau de bord"),
-    ("question", r"question|interrogation|incertitude"),
-    ("decision", r"d[ée]cision|validation|arbitrage|approbation"),
+    ("budget", r"budget|€|euro|coût|cout|devis|financ|investiss|facture|tarif|\bcosts?\b|invoice|pricing|funding|invest"),
+    ("securite", r"s[ûu]ret[ée]|s[ée]curit[ée]|intrusion|vid[ée]o|cam[ée]ra|acc[èe]s|incident|gardiennage|surveillance|protection|security|safety|\baccess\b|\bCCTV\b|guard"),
+    ("risque", r"risque|menace|vuln[ée]rab|alerte|crise|danger|sinistre|\brisks?\b|threat|vulnerab|alert|crisis|hazard"),
+    ("planning", r"planning|calendrier|d[ée]lai|[ée]ch[ée]ance|date|roadmap|livraison|planif|schedule|deadline|timeline|milestone|delivery"),
+    ("equipe", r"[ée]quipe|ressources? humaines|recrut|effectif|personnel|organisation|r[ôo]les?|\bteam|staff|hiring|recruit|headcount"),
+    ("juridique", r"juridique|contrat|r[èe]glement|conformit[ée]|l[ée]gal|loi|audit|norme|assurance|legal|\bcontract|compliance|regulat|insurance|\blaw\b"),
+    ("technique", r"technique|syst[èe]me|logiciel|r[ée]seau|infrastructure|\bSI\b|informatique|outil|applicati|technical|software|network|\bIT\b|\btool|system"),
+    ("communication", r"communication|message|information|sensibilis|reporting|pr[ée]sentation|communicat|awareness|\bmessag"),
+    ("qualite", r"qualit[ée]|indicateur|kpi|performance|r[ée]sultat|bilan|statistique|tableau de bord|quality|indicator|performance|results?\b|dashboard|metric"),
+    ("question", r"question|interrogation|incertitude|uncertain|open issue"),
+    ("decision", r"d[ée]cision|validation|arbitrage|approbation|decision|approv|sign-?off|arbitrat"),
 ]
 
 
@@ -117,6 +118,11 @@ def _suffix(title: str, i: int, n: int) -> str:
 
 # ------------------------------------------------------------------ construction
 def build_slides(a: dict, visual: bool, attachments: list[dict] | None = None) -> list[Slide]:
+    """Diapositives dans la langue du rapport (intitulés fixes traduits ; le texte rédigé par le modèle n'est pas touché)."""
+    return labels.tr_deep(_build_slides(a, visual, attachments), labels.of(a))
+
+
+def _build_slides(a: dict, visual: bool, attachments: list[dict] | None = None) -> list[Slide]:
     out: list[Slide] = []
     out.append(_cover(a, visual))
     (_visual if visual else _standard)(a, out)
@@ -206,7 +212,7 @@ def _action_charts(a: dict) -> dict | None:
     for x in a["actions"]:
         prio[x.get("priorite") if x.get("priorite") in prio else "moyenne"] += 1
         o = (x.get("responsable") or "").strip()
-        if o and o.lower() != "à définir":
+        if o and o.lower() not in labels.TBD:
             owners[o] = owners.get(o, 0) + 1
     top = sorted(owners.items(), key=lambda kv: (-kv[1], kv[0]))[:5]
     return {"priorities": prio, "owners": top if len(top) >= 2 else []}
@@ -329,7 +335,7 @@ def _visual(a: dict, out: list[Slide]) -> None:
     # 7. Prochaines étapes (frise)
     def deadline_rank(x):
         e = (x.get("echeance") or "").strip().lower()
-        return (PRIO_ORDER.get(x.get("priorite", "moyenne"), 1), 1 if (not e or e == "à définir") else 0)
+        return (PRIO_ORDER.get(x.get("priorite", "moyenne"), 1), 1 if (not e or e in labels.TBD) else 0)
     nxt = sorted(a["actions"], key=deadline_rank)[:5]
     if nxt:
         out.append({"layout": "timeline", "title": "Prochaines étapes", "icon": "jalon",

@@ -8,8 +8,8 @@ ROOT = Path(__file__).resolve().parents[2]
 S = ROOT / "app" / "static"; D = ROOT / "docs" / "demo"
 data = json.loads((D / "demo-data.json").read_text(encoding="utf-8"))
 data["config"].update(has_anthropic=True, has_openai=True)
-css, rec, app = (S / "style.css").read_text(encoding="utf-8"), (S / "recorder.js").read_text(encoding="utf-8"), (S / "app.js").read_text(encoding="utf-8")
-for s in (rec, app):
+css, rec, app, i18n = (S / "style.css").read_text(encoding="utf-8"), (S / "recorder.js").read_text(encoding="utf-8"), (S / "app.js").read_text(encoding="utf-8"), (S / "i18n.js").read_text(encoding="utf-8")
+for s in (rec, app, i18n):
     assert "</script" not in s.lower()
 
 PRE = r"""
@@ -37,6 +37,7 @@ PRE = r"""
     if (method === "GET" && (m = path.match(/^\/meetings\/(\w+)$/))) return json(meeting(m[1]));
     if (method === "GET" && /^\/meetings\/\w+\/attachments$/.test(path)) return json(DATA.attachments);
     if (method === "GET" && (m = path.match(/^\/meetings\/\w+\/preview\/(\w+)$/))) return DATA.previews[m[1]] ? json(DATA.previews[m[1]]) : json({ detail: "Aperçu indisponible dans la démo" }, 404);
+    if (method === "GET" && path === "/privacy") return json({ password_set: true, https: true, ai_drafting: { enabled: true, provider: "anthropic" }, transcription: { provider: "local", audio_leaves_server: false }, retention_days: 0, keep_audio: false, staging_hours: 24 });
     if (method === "GET" && path === "/branding") return json(DATA.branding);
     if (method === "PUT" && path === "/branding") { Object.assign(DATA.branding, JSON.parse(opts.body)); return json(DATA.branding); }
     if (method === "POST" && /^\/meetings\/(text|url|audio)$/.test(path)) { const id = rid(); born[id] = { at: Date.now() }; return json({ id }); }
@@ -65,7 +66,7 @@ PRE = r"""
   document.addEventListener("click", (e) => {
     const a = e.target.closest && e.target.closest("a[download], a[href^='/api/']");
     if (!a) return;
-    e.preventDefault(); const t = document.getElementById("toast"); t.textContent = "Démo : les exports PDF, Word, Excel et PowerPoint sont disponibles avec votre serveur."; t.hidden = false; setTimeout(() => (t.hidden = true), 4000);
+    e.preventDefault(); const t = document.getElementById("toast"); t.textContent = "Démo : les exports PDF, Word, Excel et PowerPoint sont disponibles avec votre serveur.";; t.hidden = false; setTimeout(() => (t.hidden = true), 4000);
   }, true);
 })();
 """.replace("%DATA%", json.dumps(data, ensure_ascii=False))
@@ -78,16 +79,20 @@ html{{color-scheme:light}}
 .demo-note{{background:#fff7e6;color:#5c3d00;border-bottom:1px solid #f0d9a8;padding:8px max(16px,env(safe-area-inset-left,0px));font-size:13px;line-height:1.4}}
 .top,.wrap{{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}}
 </style>
-<div class="demo-note"><strong>Démonstration.</strong> Interface réelle de l'application, avec des données d'exemple : rien n'est enregistré ni envoyé. Le bouton REC simule un enregistrement (sans micro). Les exports ne sont pas téléchargeables ici.</div>
+<div class="demo-note" id="demo-note" data-notr></div>
 <header class="top">
   <a class="brand" href="#/" aria-label="Accueil GMeeting">GMeeting</a>
   <a id="recbar" class="recbar" href="#/" hidden aria-live="polite"></a>
-  <nav class="nav"><a href="#/brand">Gabarit</a></nav>
+  <nav class="nav"><a href="#/privacy">Confidentialité</a> <a href="#/brand">Gabarit</a></nav>
   <span id="cfg" class="cfg" role="status"></span>
 </header>
 <main id="app" class="wrap"></main>
 <div id="toast" class="toast" role="alert" hidden></div>
+<script>{i18n}</script>
 <script>{PRE}</script>
+<script>document.getElementById("demo-note").innerHTML = window.GM_LANG === "en"
+  ? "<strong>Demo.</strong> The app's real interface with sample data: nothing is recorded or sent. The REC button simulates a recording (no microphone). Exports cannot be downloaded here. Sample reports are in French."
+  : "<strong>Démonstration.</strong> Interface réelle de l'application, avec des données d'exemple : rien n'est enregistré ni envoyé. Le bouton REC simule un enregistrement (sans micro). Les exports ne sont pas téléchargeables ici.";</script>
 <script>{rec}</script>
 <script>{app}</script>
 """

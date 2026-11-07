@@ -1,7 +1,7 @@
 /* Service worker : installation de l'application et ouverture hors-ligne de l'interface.
    Les appels /api ne sont jamais mis en cache (données de réunion sensibles). */
-const V = "gmeeting-v3";
-const SHELL = ["/", "/style.css", "/app.js", "/recorder.js", "/icon.svg", "/manifest.webmanifest"];
+const V = "gmeeting-v4";
+const SHELL = ["/", "/style.css", "/app.js", "/i18n.js", "/recorder.js", "/icon.svg", "/manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(V).then((c) => Promise.all(SHELL.map((u) => c.add(u).catch(() => {})))).then(() => self.skipWaiting()));

@@ -155,6 +155,21 @@ native (non fournie). Hors-ligne, l'audio n'existe que sur l'appareil jusqu'à l
 navigateurs, notamment Safari, purgent les données d'un site peu utilisé ; l'application installée est mieux protégée),
 et gardez de la place (≈ 30-60 Mo par heure). Un avertissement s'affiche si l'espace est faible.
 
+## Protection des données personnelles
+Les réunions contiennent des voix, des noms et des propos : GMeeting est conçu pour qu'ils restent chez vous (serveur auto-hébergé, aucune télémétrie, aucune publicité).
+- Page **« 🔒 Confidentialité »** dans l'application : l'état réel de *votre* serveur (transcription locale ou non, IA configurée ou non, conservation, mot de passe, HTTPS).
+- **Partages** : un fichier, un mail ou un lien partagé vers l'application part uniquement vers votre serveur ; la copie du téléphone est effacée aussitôt ; une pièce jamais rattachée à une réunion est supprimée au bout de 24 h (même sans rétention).
+- **Suppression** complète d'une réunion en un geste (audio, transcription, documents, pièces jointes) ; rétention automatique optionnelle (`RETENTION_DAYS`) ; audio supprimé après rédaction par défaut.
+- **Android** : mot de passe chiffré, écran protégé par défaut dans la version publiée (aperçu masqué, captures bloquées, désactivable).
+- Guide, limites assumées (pas de chiffrement au repos, mot de passe unique, pas de pseudonymisation avant l'IA) et repères RGPD : [`docs/PROTECTION_DONNEES.md`](docs/PROTECTION_DONNEES.md) ; politique de confidentialité : [`docs/PRIVACY_POLICY.md`](docs/PRIVACY_POLICY.md).
+
+## Langues : français et anglais
+- **Interface** (web et application Android) : français ou anglais. Langue par défaut = celle du navigateur ou du téléphone (français → FR, sinon EN) ; bouton **FR | EN** dans l'en-tête pour changer. Sur Android, les textes natifs sont dans `res/values` (anglais) et `res/values-fr`.
+- **Documents** (PV, CR, note de synthèse, présentations, PDF / Word / Excel / PowerPoint) : **langue du rapport** choisie à la création (champ « Langue du rapport », par défaut celle de l'interface) ou modifiée dans l'onglet *Informations* puis *Régénérer*. Le modèle rédige dans cette langue et les intitulés fixes sont traduits (`app/labels.py`). Sans choix : français.
+- **Langue parlée** (transcription) reste un réglage distinct : on peut enregistrer en français et obtenir un rapport en anglais, ou l'inverse.
+- Traduction de l'interface : dictionnaire dans `app/static/i18n.js` (le code reste écrit en français). Le contenu des réunions n'est jamais traduit par l'interface. Un message d'erreur du serveur absent du dictionnaire s'affiche tel quel (en français).
+- Tests : `tests/test_report_lang.py`, `tests/e2e/i18n.js` (couverture : aucun texte d'interface laissé en français en mode anglais).
+
 ## Application Android (en préparation pour Google Play)
 Client natif du serveur de l'utilisateur : enregistreur en service de premier plan (écran verrouillé, appels, mode avion), partage depuis Outlook / Word /
 Excel / PDF / liens, interface web intégrée. Code dans `android/` (noyau Kotlin testé + module `:app`), CI `android`, essai local : `docs/ESSAI_LOCAL.md`,
