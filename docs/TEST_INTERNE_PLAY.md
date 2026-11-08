@@ -9,7 +9,7 @@ Le **test interne** est la piste la plus rapide : jusqu'à 100 testeurs (adresse
 
 ## Prérequis
 - Un **compte Google Play Console** (frais uniques, vérification d'identité). Pour un compte personnel récent, la **production** exige ensuite un test fermé (12 testeurs pendant 14 jours) ; le test interne, lui, n'a pas cette contrainte et ne compte pas dans les 14 jours.
-- **Cible Android 16 (API 36)** : exigée par Google pour toute *nouvelle* application depuis le 31 août 2026 ([source Google](https://developer.android.com/google/play/requirements/target-sdk)). L'application cible l'API 36 depuis cette version (à confirmer par la CI, voir « Vérifications »).
+- **Cible Android 16 (API 36)** : exigée par Google pour toute *nouvelle* application depuis le 31 août 2026 ([source Google](https://developer.android.com/google/play/requirements/target-sdk)). L'application cible l'API 36 depuis cette version (compilation vérifiée par la CI, voir « Vérifications »).
 - Un **serveur en HTTPS** pour essayer l'application publiée : **la version du Play Store refuse le HTTP**. Utilisez votre domaine (`DEPLOY.md`) ou `./deploy/local.sh --tunnel` (lien HTTPS temporaire). Le HTTP local ne marche que dans l'APK de test (debug).
 
 ## 1. Décider l'identifiant d'application (définitif)
@@ -82,6 +82,6 @@ Relancer le workflow : le `versionCode` doit être **strictement supérieur** à
 | Script de clé : droits 700/600, mot de passe aléatoire, aller-retour base64, refus d'écraser | testé |
 | Contrôle de la version publiée : 6 dégradations volontaires détectées (HTTP, sauvegarde, cible, suffixe, config réseau, service micro) | testé |
 | Validation des paramètres du workflow (versionCode, versionName, identifiant) | testée |
-| Compilation avec la cible API 36 (AGP 8.9.1, Gradle 8.11.1), contrôles dans la CI `android` | vérifiée par la CI de la PR |
+| Compilation avec la cible API 36 (AGP 8.9.1, Gradle 8.11.1) : APK debug, lint, bundle de la version publiée, et contrôle de son manifeste fusionné (HTTP refusé, non débogable) | vérifiée en CI (run vert) |
 | Signature réelle du bundle, empreinte, envoi sur Google Play, installation depuis le Play Store | **jamais essayés** (demandent votre clé et votre compte) |
 | Comportement sur téléphone (affichage bord à bord de l'API 36, geste « retour », écran protégé) | **jamais essayé** : `docs/TESTS_TELEPHONE.md` |
