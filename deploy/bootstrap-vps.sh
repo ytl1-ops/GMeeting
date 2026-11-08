@@ -23,6 +23,11 @@ run() { if [ "$DRY" = 1 ]; then printf '   [dry-run] %s\n' "$*"; else "$@"; fi; 
 [ "$DRY" = 1 ] && say "MODE SIMULATION : rien ne sera modifié."
 if [ "$DRY" = 0 ]; then [ "$(id -u)" = 0 ] || fail "à lancer en administrateur : sudo ./deploy/bootstrap-vps.sh $DOMAIN"; fi
 
+# Oracle Cloud : les images Ubuntu gèrent le pare-feu avec des règles iptables (et non ufw) : traitement à part (deploy/oracle-firewall.sh)
+IS_ORACLE="${ORACLE_OVERRIDE:-}"
+if [ -z "$IS_ORACLE" ]; then if [ "$(cat /sys/class/dmi/id/chassis_asset_tag 2>/dev/null || true)" = "OracleCloud.com" ]; then IS_ORACLE=1; else IS_ORACLE=0; fi; fi
+[ "$IS_ORACLE" = 1 ] && say "→ Serveur Oracle Cloud détecté : pare-feu géré par iptables (pas ufw)"
+
 # système pris en charge
 OS_ID="${OS_ID_OVERRIDE:-}"; CODENAME="${CODENAME_OVERRIDE:-}"
 if [ -z "$OS_ID" ] && [ -r /etc/os-release ]; then OS_ID="$(. /etc/os-release; echo "${ID:-}")"; CODENAME="$(. /etc/os-release; echo "${VERSION_CODENAME:-}")"; fi
@@ -40,7 +45,9 @@ fi
 
 say "→ Paquets de base et mises à jour de sécurité automatiques"
 run apt-get update -y
-run env DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl gnupg ufw unattended-upgrades git
+if [ "$IS_ORACLE" = 1 ]; then FWPKG="iptables-persistent"; else FWPKG="ufw"; fi
+if [ "$DRY" = 0 ] && [ "$IS_ORACLE" = 1 ]; then echo "iptables-persistent iptables-persistent/autosave_v4 boolean false" | debconf-set-selections; echo "iptables-persistent iptables-persistent/autosave_v6 boolean false" | debconf-set-selections; fi
+run env DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl gnupg $FWPKG unattended-upgrades git
 if [ "$DRY" = 0 ]; then echo "unattended-upgrades unattended-upgrades/enable_auto_updates boolean true" | debconf-set-selections; DEBIAN_FRONTEND=noninteractive dpkg-reconfigure -f noninteractive unattended-upgrades
 else printf '   [dry-run] activation de unattended-upgrades\n'; fi
 
@@ -58,6 +65,11 @@ else
   run systemctl enable --now docker
 fi
 
+if [ "$IS_ORACLE" = 1 ]; then
+  say "→ Pare-feu Oracle Cloud : ports 80 et 443 ouverts AVANT la règle de rejet finale"
+  if [ "$DRY" = 1 ]; then "$ROOT/deploy/oracle-firewall.sh" --dry-run; else "$ROOT/deploy/oracle-firewall.sh"; fi
+  say "   ⚠ Ce n'est qu'une des deux barrières : la liste de sécurité du réseau virtuel (VCN) doit aussi autoriser TCP 80 et 443 (docs/ORACLE.md)."
+else
 say "→ Pare-feu : SSH, HTTP (certificat) et HTTPS seulement"
 SSHPORT="$(ss -tlnp 2>/dev/null | awk '/sshd/ {n=split($4,a,":"); print a[n]; exit}' || true)"; SSHPORT="${SSHPORT:-22}"
 run ufw default deny incoming
@@ -66,6 +78,7 @@ run ufw allow "$SSHPORT/tcp"          # AVANT d'activer le pare-feu : sinon vous
 run ufw allow 80/tcp
 run ufw allow 443/tcp
 run ufw --force enable
+fi
 
 say "→ Installation de GMeeting ($DOMAIN)"
 ARGS=("$DOMAIN"); [ "$DEMO" = 1 ] && ARGS+=(--demo); [ -n "$DATADIR" ] && ARGS+=(--data-dir "$DATADIR")

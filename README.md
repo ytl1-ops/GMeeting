@@ -155,6 +155,9 @@ native (non fournie). Hors-ligne, l'audio n'existe que sur l'appareil jusqu'à l
 navigateurs, notamment Safari, purgent les données d'un site peu utilisé ; l'application installée est mieux protégée),
 et gardez de la place (≈ 30-60 Mo par heure). Un avertissement s'affiche si l'espace est faible.
 
+## Serveur gratuit sur Oracle Cloud
+Guide pas à pas (compte, instance ARM, ports, DNS, installation, vérification) et scripts d'aide depuis votre poste : [`docs/ORACLE.md`](docs/ORACLE.md), [`deploy/oracle-helper.sh`](deploy/oracle-helper.sh).
+
 ## Où sont conservées vos données
 Trois rôles, trois emplacements désignés par vous : **disque du PC ou du serveur** (`./deploy/install.sh --data-dir /chemin`), **cloud** pour des sauvegardes chiffrées avant l'envoi (`./deploy/backup-cloud.sh`), **dossier du téléphone** pour une copie de l'audio (page Confidentialité de l'application). Détails, précautions et niveau de preuve : [`docs/STOCKAGE.md`](docs/STOCKAGE.md).
 
