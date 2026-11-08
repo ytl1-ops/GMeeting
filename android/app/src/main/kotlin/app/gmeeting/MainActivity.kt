@@ -39,7 +39,11 @@ class MainActivity : Activity() {
         if (cfg == null) { startActivity(Intent(this, SetupActivity::class.java)); finish(); return }
         applySecure(secureOn())
         web = WebView(this)
-        setContentView(web)
+        val root = android.widget.FrameLayout(this).apply { setBackgroundColor(android.graphics.Color.WHITE); addView(web, android.widget.FrameLayout.LayoutParams.MATCH_PARENT, android.widget.FrameLayout.LayoutParams.MATCH_PARENT) }
+        setContentView(root)
+        Insets.fit(root)
+        // Android 13+ : geste « retour » prédictif ; obligatoire en ciblant Android 16 (onBackPressed n'est plus appelé par défaut)
+        if (Build.VERSION.SDK_INT >= 33) onBackInvokedDispatcher.registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT) { goBackOrFinish() }
         web.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -202,7 +206,9 @@ class MainActivity : Activity() {
     }
 
     @Deprecated("Deprecated in Java")
-    override fun onBackPressed() { if (cfg != null && web.canGoBack()) web.goBack() else super.onBackPressed() }
+    override fun onBackPressed() { if (Build.VERSION.SDK_INT >= 33) goBackOrFinish() else if (cfg != null && web.canGoBack()) web.goBack() else super.onBackPressed() }
+
+    private fun goBackOrFinish() { if (cfg != null && web.canGoBack()) web.goBack() else finish() }
 
     override fun onDestroy() { if (cfg != null) { web.removeJavascriptInterface("GMeetingNative"); web.destroy() }; super.onDestroy() }
 

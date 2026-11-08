@@ -42,7 +42,9 @@ class SetupActivity : Activity() {
         go = Button(this).apply { text = getString(R.string.setup_connect); setOnClickListener { connect() } }
         status = TextView(this).apply { textSize = 14f; setPadding(0, dp(16), 0, 0) }
         col.addView(url); col.addView(pw); col.addView(go); col.addView(status)
-        setContentView(ScrollView(this).apply { addView(col, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT) })
+        val scroll = ScrollView(this).apply { addView(col, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT) }
+        setContentView(scroll)
+        Insets.fit(scroll)
     }
 
     private fun say(msg: String, error: Boolean = true) {

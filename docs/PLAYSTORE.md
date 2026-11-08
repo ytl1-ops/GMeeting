@@ -33,8 +33,8 @@ Application Android = **client du serveur de l'utilisateur** (modèle Nextcloud 
 5. **Politique de confidentialité** publique : `docs/PRIVACY_POLICY.md` à héberger sur une URL (GitHub Pages convient) en renseignant
    l'éditeur et le contact.
 6. **Formulaire Sécurité des données** : voir réponses proposées ci-dessous.
-7. **Signature** : activer Play App Signing ; générer la clé d'envoi (`keytool`), `android/keystore.properties` (jamais versionné).
-   Build : `./gradlew :app:bundleRelease -PversionCode=2 -PversionName=1.0.1`.
+7. **Signature et test interne** : procédure complète dans `docs/TEST_INTERNE_PLAY.md` (clé d'envoi via `android/tools/make-upload-key.sh`, secrets GitHub, workflow `android-release`, Play App Signing).
+   **Cible API 36 (Android 16)** exigée pour toute nouvelle application depuis le 31/08/2026 : à relever chaque année (`android/tools/check-release.sh` en donne le minimum).
 
 ## Formulaire « Sécurité des données » (réponses proposées, à vérifier dans la console)
 - **Point délicat** : l'éditeur ne reçoit aucune donnée, mais l'application **transmet** de l'audio et des fichiers hors de l'appareil (vers le serveur choisi par l'utilisateur).

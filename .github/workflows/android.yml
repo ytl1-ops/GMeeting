@@ -43,10 +43,16 @@ jobs:
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME"
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;35.0.0"
+      - name: Contrôle de la version publiée (HTTPS, sauvegarde, cible API 36…)
+        working-directory: android
+        run: tools/check-release.sh .
       - name: Compilation
         working-directory: android
         run: ./gradlew :core:test :app:assembleDebug :app:lintDebug :app:bundleRelease --no-daemon --console=plain
+      - name: Contrôle du manifeste fusionné de la version publiée
+        working-directory: android
+        run: tools/check-release.sh .
       - uses: actions/upload-artifact@v4
         if: always()
         with:
