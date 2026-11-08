@@ -12,12 +12,12 @@ val keystoreFile = rootProject.file("keystore.properties")        // jamais vers
 
 android {
     namespace = "app.gmeeting"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = appId
         minSdk = 26          // Android 8.0 : MediaRecorder.setNextOutputFile (segments sans coupure), icônes adaptatives
-        targetSdk = 35       // Android 15. Google relève l'exigence chaque année : à relever (et retester) avant la date limite
+        targetSdk = 36       // Android 16 : exigé par le Play Store pour toute NOUVELLE application depuis le 31/08/2026. Google relève l'exigence chaque année : à relever (et retester) à temps
         versionCode = (project.findProperty("versionCode") as String?)?.toInt() ?: 1
         versionName = (project.findProperty("versionName") as String?) ?: "0.1.0"
     }

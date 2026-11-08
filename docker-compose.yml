@@ -21,7 +21,8 @@ services:
     tmpfs:
       - /tmp:size=64m                    # …sauf un petit /tmp (caches) ; les gros fichiers temporaires vont dans le volume /data
     volumes:
-      - gmeeting-data:/data
+      # Emplacement des données : par défaut un volume Docker ; GMEETING_DATA=/chemin/absolu (dans .env) les place sur un DISQUE DÉSIGNÉ (disque externe, autre partition…)
+      - ${GMEETING_DATA:-gmeeting-data}:/data
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     expose:

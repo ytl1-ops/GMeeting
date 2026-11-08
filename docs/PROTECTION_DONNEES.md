@@ -19,6 +19,9 @@ conçu pour qu'elles restent chez vous.
 | Comptes rendus, présentations, exports | votre serveur ; fichiers téléchargés sur l'appareil | vous | à vous de les gérer ; un téléchargement est un fichier ordinaire |
 | Pièces reçues par partage non rattachées | votre serveur (zone d'attente) | — | **effacées automatiquement après 24 h** |
 | Mot de passe du serveur (Android) | téléphone, chiffré (Keystore) | — | jusqu'à déconnexion / désinstallation |
+| Copie facultative de l'audio (si activée) | dossier du téléphone désigné par l'utilisateur, **non chiffrée** | le service de ce dossier s'il est synchronisé avec un cloud | jusqu'à suppression par l'utilisateur |
+| Sauvegardes dans un cloud (si configurées) | cloud désigné par l'administrateur, **chiffrées avant l'envoi** | le fournisseur ne voit que des données illisibles (taille, nom, date) | 14 copies par défaut (`BACKUP_KEEP_REMOTE`) |
+| Emplacement du disque | disque désigné par l'administrateur (`--data-dir`) | — | voir `docs/STOCKAGE.md` |
 
 La page **« 🔒 Confidentialité »** de l'application affiche l'état réel de *votre* serveur (transcription locale ou non, IA configurée ou non, durée de conservation,
 mot de passe, HTTPS). Elle ne dit que des faits lus dans la configuration.

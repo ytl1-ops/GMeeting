@@ -13,3 +13,9 @@ android/*.jks
 android/*.keystore
 android/keystore.properties
 android/.kotlin/
+
+# serveur de démonstration : contient un mot de passe
+DEMO_ACCESS.txt
+
+# réglages de sauvegarde cloud : contiennent la phrase secrète
+.backup-cloud.env

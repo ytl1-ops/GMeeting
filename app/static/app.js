@@ -401,7 +401,8 @@ async function viewPrivacy() {
   const ok = (t) => el("p", {}, "✅ " + t), warn = (t) => el("p", { class: "err" }, "⚠ " + t), info = (t) => el("p", {}, t);
   const where = sec("Où sont vos données",
     info("Vos réunions, enregistrements, transcriptions et documents sont stockés sur le serveur GMeeting que vous utilisez : le vôtre ou celui de votre organisation."),
-    info("L'éditeur de l'application n'en reçoit aucune copie. Aucune publicité, aucun outil de mesure d'audience."));
+    info("L'éditeur de l'application n'en reçoit aucune copie. Aucune publicité, aucun outil de mesure d'audience."),
+    info("Par défaut, elles sont sur le disque du serveur ; l'administrateur peut désigner un autre disque, et envoyer des sauvegardes chiffrées vers un cloud de son choix. Le téléphone peut en plus garder une copie de l'audio dans un dossier que vous désignez (voir plus bas)."));
   const ai = sec("Ce qui est envoyé à un service d'IA",
     p.ai_drafting.enabled ? info("Pour rédiger les comptes rendus, le texte de la réunion (transcription, contexte et pièces jointes incluses) est envoyé au service d'IA Anthropic configuré sur ce serveur.")
       : ok("La rédaction par IA n'est pas configurée sur ce serveur : aucun texte n'est envoyé."),
@@ -424,7 +425,20 @@ async function viewPrivacy() {
   if (window.GMeetingNative?.isAvailable?.() && window.GMeetingNative.isSecureScreen) {
     const cb = el("input", { type: "checkbox", id: "p-secure" }); cb.checked = !!window.GMeetingNative.isSecureScreen();
     cb.onchange = () => window.GMeetingNative.setSecureScreen(cb.checked);
-    parts.push(sec("Sur ce téléphone", el("label", {}, cb, " Protéger l'écran : masquer l'aperçu dans les applications récentes et bloquer les captures d'écran")));
+    const N = window.GMeetingNative, copyBox = el("div", {});
+    const drawCopy = () => {
+      let st = { name: "", failed: false }; try { st = JSON.parse(N.copyFolderStatus()); } catch {}
+      copyBox.replaceChildren(
+        el("h4", { style: "margin:14px 0 4px" }, "Copie de l'audio sur ce téléphone"),
+        info("Pour garder aussi l'audio sur le téléphone (mémoire, carte SD, dossier synchronisé avec un cloud), désignez un dossier : chaque minute enregistrée y est copiée en .m4a, en plus de l'envoi à votre serveur. Ces copies ne sont pas chiffrées : protégez ce dossier."),
+        st.name ? ok("Copie dans le dossier : " + st.name) : info("Aucune copie sur le téléphone."),
+        ...(st.failed ? [warn("La dernière copie a échoué : le dossier existe-t-il encore ? Désignez-le à nouveau.")] : []),
+        el("div", { class: "row" }, el("button", { class: "btn sec", type: "button", onclick: () => N.chooseCopyFolder() }, st.name ? "Changer de dossier" : "Choisir un dossier"),
+          ...(st.name ? [el("button", { class: "btn sec", type: "button", onclick: () => { N.clearCopyFolder(); drawCopy(); } }, "Ne plus copier")] : [])));
+    };
+    window.addEventListener("gmeeting-copy-folder", () => { if (copyBox.isConnected) drawCopy(); });
+    if (N.copyFolderStatus) drawCopy();
+    parts.push(sec("Sur ce téléphone", el("label", {}, cb, " Protéger l'écran : masquer l'aperçu dans les applications récentes et bloquer les captures d'écran"), copyBox));
   }
   parts.push(sec("Vos droits", info("Vous pouvez supprimer une réunion depuis sa fiche. Pour une demande d'accès, de rectification ou d'effacement concernant une personne, adressez-vous à l'administrateur du serveur.")));
   $app.replaceChildren(el("p", {}, el("a", { href: "#/" }, "← Retour")), el("h1", {}, "Confidentialité et protection des données"), ...parts);

@@ -13,6 +13,7 @@
 - **Adresse et mot de passe du serveur**, stockés chiffrés sur le téléphone (Android Keystore).
 - **Segments audio en attente d'envoi**, conservés temporairement sur le téléphone puis supprimés après réception par le serveur.
 - **Copies temporaires de partage** : faites le temps de l'envoi, supprimées aussitôt (et au démarrage suivant de l'application si elle a été interrompue).
+- **Copie facultative de l'audio** : si vous la choisissez (désactivée par défaut), chaque minute enregistrée est copiée dans un dossier du téléphone que VOUS désignez, **sans chiffrement** ; si ce dossier est synchronisé avec un cloud, ce cloud y accède. Vous pouvez l'arrêter à tout moment.
 - Le **réglage « écran protégé »** (préférence locale, sans donnée personnelle).
 
 ## Où vont les données

@@ -1,14 +1,15 @@
 name: android-release
 
-# Construit le bundle signé (.aab) à envoyer sur Google Play. Déclenchement MANUEL uniquement (onglet Actions → Run workflow).
-# Secrets requis (Settings → Secrets and variables → Actions) :
-#   ANDROID_KEYSTORE_B64   le fichier .jks encodé en base64  (base64 -w0 upload.jks)
-#   ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+# Construit le bundle SIGNÉ (.aab) à envoyer sur Google Play (test interne, puis production). Déclenchement MANUEL (onglet Actions → Run workflow).
+# Mode d'emploi complet : docs/TEST_INTERNE_PLAY.md
+# Secrets requis (Settings → Secrets and variables → Actions) : créés par android/tools/make-upload-key.sh sur votre poste
+#   ANDROID_KEYSTORE_B64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
 on:
   workflow_dispatch:
     inputs:
-      version_code: { description: "versionCode (entier, à incrémenter à chaque envoi)", required: true, default: "1" }
-      version_name: { description: "versionName affichée", required: true, default: "1.0.0" }
+      version_code: { description: "versionCode (entier, DOIT augmenter à chaque envoi). Vide = numéro de l'exécution du workflow", required: false, default: "" }
+      version_name: { description: "versionName affichée aux utilisateurs", required: true, default: "1.0.0" }
+      app_id: { description: "Identifiant d'application (DÉFINITIF après le premier envoi). Vide = app.gmeeting.android", required: false, default: "" }
 
 jobs:
   bundle:
@@ -18,6 +19,19 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: "17" }
+      - name: Contrôle des sources de la version publiée
+        working-directory: android
+        run: tools/check-release.sh .
+      - name: Paramètres de version
+        id: v
+        env: { VC: "${{ inputs.version_code }}", VN: "${{ inputs.version_name }}", AID: "${{ inputs.app_id }}" }
+        run: |
+          VC="${VC:-${{ github.run_number }}}"
+          [[ "$VC" =~ ^[0-9]+$ ]] && [ "$VC" -ge 1 ] && [ "$VC" -le 2100000000 ] || { echo "::error::versionCode invalide : $VC"; exit 1; }
+          [[ "$VN" =~ ^[0-9A-Za-z._-]{1,40}$ ]] || { echo "::error::versionName invalide"; exit 1; }
+          AID="${AID:-app.gmeeting.android}"
+          [[ "$AID" =~ ^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$ ]] || { echo "::error::identifiant d'application invalide : $AID"; exit 1; }
+          echo "code=$VC" >> "$GITHUB_OUTPUT"; echo "name=$VN" >> "$GITHUB_OUTPUT"; echo "aid=$AID" >> "$GITHUB_OUTPUT"
       - name: Clé de signature
         env:
           KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
@@ -25,16 +39,42 @@ jobs:
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PW: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          [ -n "$KS_B64" ] && [ -n "$KS_PW" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PW" ] || { echo "::error::Secrets de signature manquants (voir l'en-tête du workflow)."; exit 1; }
+          [ -n "$KS_B64" ] && [ -n "$KS_PW" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PW" ] || { echo "::error::Secrets de signature manquants : voir docs/TEST_INTERNE_PLAY.md (étape 3)."; exit 1; }
           echo "$KS_B64" | base64 -d > android/upload.jks
+          keytool -list -keystore android/upload.jks -storepass "$KS_PW" -alias "$KEY_ALIAS" > /dev/null 2>&1 || { echo "::error::La clé ne s'ouvre pas avec ces secrets (mot de passe ou alias incorrect)."; rm -f android/upload.jks; exit 1; }
           { echo "storeFile=upload.jks"; echo "storePassword=$KS_PW"; echo "keyAlias=$KEY_ALIAS"; echo "keyPassword=$KEY_PW"; } > android/keystore.properties
-      - name: SDK Android, plateforme 35
+      - name: SDK Android, plateforme 36
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;35.0.0"
       - name: Bundle de production
         working-directory: android
-        run: ./gradlew :core:test :app:bundleRelease -PversionCode=${{ inputs.version_code }} -PversionName=${{ inputs.version_name }} --no-daemon --console=plain
+        run: ./gradlew :core:test :app:bundleRelease -PappId=${{ steps.v.outputs.aid }} -PversionCode=${{ steps.v.outputs.code }} -PversionName=${{ steps.v.outputs.name }} --no-daemon --console=plain
+      - name: Contrôle du manifeste fusionné
+        working-directory: android
+        run: tools/check-release.sh .
+      - name: Vérification de la signature et empreinte
+        run: |
+          AAB=$(ls android/app/build/outputs/bundle/release/*.aab | head -1)
+          [ -f "$AAB" ] || { echo "::error::Aucun .aab produit"; exit 1; }
+          jarsigner -verify "$AAB" | tee /tmp/verify.txt
+          grep -q "jar verified" /tmp/verify.txt || { echo "::error::Le bundle n'est PAS signé correctement : ne l'envoyez pas."; exit 1; }
+          FP=$(keytool -printcert -jarfile "$AAB" 2>/dev/null | grep "SHA256:" | head -1 | sed 's/^ *//')
+          SUM=$(sha256sum "$AAB" | cut -d' ' -f1); SIZE=$(du -h "$AAB" | cut -f1)
+          {
+            echo "### Bundle signé prêt pour Google Play"
+            echo "| | |"; echo "|---|---|"
+            echo "| Identifiant d'application | \`${{ steps.v.outputs.aid }}\` |"
+            echo "| versionCode / versionName | ${{ steps.v.outputs.code }} / ${{ steps.v.outputs.name }} |"
+            echo "| Taille | $SIZE |"
+            echo "| SHA-256 du fichier | \`$SUM\` |"
+            echo "| Empreinte du certificat d'envoi | \`$FP\` |"
+            echo
+            echo "Vérifiez que l'empreinte ci-dessus est celle enregistrée dans la Play Console (Intégrité de l'application → Signature de l'application → certificat de clé d'envoi)."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Effacer la clé du poste de build
+        if: always()
+        run: rm -f android/upload.jks android/keystore.properties
       - uses: actions/upload-artifact@v4
         with:
           name: gmeeting-release-aab

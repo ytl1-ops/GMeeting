@@ -250,6 +250,8 @@ class RecordingService : Service() {
         if (file == null || !file.exists()) return
         if (file.length() == 0L) { file.delete(); return }
         runCatching { store.commitSegment(id, index, file) }
+        // copie facultative sur le téléphone : mise à l'abri tout de suite (rapide), écriture dans le dossier désigné hors du fil principal, AVANT l'envoi (même file d'attente)
+        LocalCopy.stage(applicationContext, id, index, file)?.let { staged -> io.execute { LocalCopy.write(applicationContext, id, index, staged) } }
         kickUpload()
     }
 

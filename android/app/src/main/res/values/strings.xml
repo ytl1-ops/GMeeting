@@ -44,4 +44,5 @@
     <string name="offline_need_perm">Allow the microphone, then try again.</string>
     <string name="offline_recording">Recording…</string>
     <string name="offline_finished">Finished: upload as soon as the network returns.</string>
+    <string name="copy_no_picker">No folder picker is available on this device.</string>
 </resources>
