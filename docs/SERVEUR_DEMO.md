@@ -5,6 +5,23 @@ Il sert à trois choses : **essayer la version publiée** de l'application (qui 
 > **Ce que ce dépôt fait pour vous** : prépare un serveur neuf en une commande, l'installe en HTTPS, le vérifie de l'extérieur, et écrit le texte à coller dans la Play Console.
 > **Ce que seul vous pouvez faire** : ouvrir un compte chez un hébergeur, louer le serveur, créer l'enregistrement DNS, fournir des clés d'IA. Je ne peux ni louer ni piloter un serveur, ni joindre Internet depuis mon environnement de travail.
 
+## Hébergement gratuit : ce qui existe, et ses limites
+> Recherche faite en novembre 2026. **Je n'ai pas pu lire les pages officielles** des fournisseurs (domaines hors du réseau autorisé de ma session) : les chiffres viennent de comparatifs tiers, parfois contradictoires. **Vérifiez chez le fournisseur avant de vous inscrire.**
+
+| Offre | Convient ? | À savoir |
+|---|---|---|
+| **Oracle Cloud « Always Free »** (VM Ampere A1, ARM) | **Oui, la meilleure piste** | VM complète avec Docker. [Quota annoncé](https://docs.oracle.com/en-us/iaas/Content/FreeTier/resourceref.htm) : 4 OCPU / 24 Go ; un [comparatif](https://braindetox.kr/en/posts/oracle_always_free_tier_reduced_2026.html) évoque une baisse à environ 2 OCPU / 12 Go en juin 2026 (non confirmée) : dimensionnez à **2 OCPU / 12 Go**. Carte bancaire demandée, région d'origine à choisir (Europe), capacité ARM parfois épuisée. |
+| **Google Cloud « Always Free »** (e2-micro) | Possible, juste | [1 machine, 1 Go de mémoire, 30 Go de disque, environ 1 Go de sortie réseau par mois](https://gturanker.org/articles/google-cloud-for-beginners/), **trois régions des États-Unis seulement**. Prévoir du swap. Données hors Europe. |
+| Render, Railway, Koyeb, Fly.io, SnapDeploy… | **Non** | [Mise en veille](https://dev.to/snapdeploy/free-backend-hosting-7-platforms-that-wont-kill-your-api-2026-1i1g), plafonds d'usage, carte exigée ; disque persistant non confirmé. Un serveur qui dort casse les envois d'enregistrements et la revue Google. |
+| Votre PC avec `./deploy/local.sh --tunnel` | Essais personnels | Gratuit mais le lien change à chaque lancement et le PC n'est pas toujours allumé : **inutilisable pour la revue Google**. |
+
+**Réserves sur Oracle**
+- **Reprise d'une machine inactive** : d'après des [sources tierces](https://braindetox.kr/en/posts/oracle_always_free_backend_2026.html), une machine sous environ 20 % d'utilisation (processeur, réseau et, en ARM, mémoire) pendant 7 jours peut être arrêtée ou reprise. Un serveur de démonstration est précisément dans ce cas. Le passage à « Pay As You Go » (toujours gratuit dans les limites) l'éviterait : à vérifier.
+- **Architecture ARM** : le contrôle `docker-arm64` de la CI construit l'image pour ARM64 (émulée), la démarre en mode durci et exporte les quatre formats de documents ; il se lance quand `Dockerfile` ou `requirements.txt` changent. Tant qu'il n'est pas vert, ne comptez pas sur ARM.
+- **Nom de domaine gratuit** : un sous-domaine de type DuckDNS suffit (`check-server.sh` vérifie le certificat dessus comme sur un domaine acheté).
+- **Disque** : sur Oracle, un volume de bloc peut être désigné comme disque des données (`--data-dir`, voir `docs/STOCKAGE.md`).
+- **Si le gratuit bloque** (capacité, inactivité), un serveur payant à quelques euros par mois pendant la durée de la revue est plus fiable : un refus pour serveur injoignable coûte plus cher en temps.
+
 ## Ce qu'il faut
 - Un **serveur Linux** (VPS) chez l'hébergeur de votre choix : **Ubuntu 22.04/24.04 ou Debian 12**, adresse IPv4 publique, au minimum **2 vCPU, 4 Go de mémoire, 20 Go de disque**. Pour une démonstration, la transcription par le service OpenAI évite d'installer un modèle local lourd. Le coût dépend de l'hébergeur (souvent quelques euros par mois) : à vérifier chez lui.
 - Un **nom de domaine** (ou sous-domaine, par ex. `demo.mondomaine.fr`) que vous pouvez faire pointer vers le serveur.
@@ -70,6 +87,7 @@ Il sert à trois choses : **essayer la version publiée** de l'application (qui 
 | `install.sh --demo` : conservation 1 jour, audio supprimé, fichier de relecteur en droits 600 | testé automatiquement |
 | `bootstrap-vps.sh` en simulation : plan complet, SSH autorisé avant d'activer le pare-feu, refus d'un domaine invalide ou d'un système non pris en charge | testé automatiquement |
 | `check-server.sh` : serveur protégé accepté ; mot de passe faux, serveur ouvert, HTTP, serveur injoignable refusés | testé contre de vrais serveurs locaux |
-| Image Docker durcie et démarrage avec Caddy | vérifiés en CI (job `docker`) |
+| Image Docker durcie et démarrage avec Caddy | vérifiés en CI (job `docker`, en x86) |
+| Image pour **ARM64** (construction, démarrage, exports PDF / Word / Excel / PowerPoint) | contrôle `docker-arm64` en CI ; **résultat à lire dans la PR** |
 | **Exécution réelle de `bootstrap-vps.sh`** (installation de Docker, `ufw`, mises à jour automatiques) sur un serveur Ubuntu / Debian | **jamais essayée** : demande un serveur |
 | **Obtention du certificat HTTPS** par Caddy sur un vrai domaine, contrôle HSTS en HTTPS | **jamais essayés** |

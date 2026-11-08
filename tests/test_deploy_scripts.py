@@ -111,6 +111,8 @@ def test_bootstrap_dry_run_shows_the_plan_and_changes_nothing(site):
         assert step in out, step
     assert out.index("ufw allow 22/tcp") < out.index("ufw --force enable")                        # SSH autorisé AVANT d'activer le pare-feu
     assert not (site / ".env").exists() and not (site / "DEMO_ACCESS.txt").exists()
+    r3 = bootstrap(site, "demo.exemple.fr", "--data-dir", "/mnt/volume/gmeeting", "--dry-run", env={"OS_ID_OVERRIDE": "ubuntu", "CODENAME_OVERRIDE": "noble", "DOCKER_PRESENT_OVERRIDE": "1"})
+    assert "install.sh demo.exemple.fr --data-dir /mnt/volume/gmeeting" in r3.stdout            # le disque désigné est transmis à l'installeur
     # Docker déjà présent : rien à installer
     r2 = bootstrap(site, "demo.exemple.fr", "--dry-run", env={"OS_ID_OVERRIDE": "debian", "CODENAME_OVERRIDE": "bookworm", "DOCKER_PRESENT_OVERRIDE": "1"})
     assert "déjà installés" in r2.stdout and "docker-ce" not in r2.stdout
@@ -122,6 +124,9 @@ def test_bootstrap_dry_run_shows_the_plan_and_changes_nothing(site):
     (("a..b.fr",), {}, "nom de domaine invalide"),
     (("--bizarre", "x.fr"), {}, "option inconnue"),
     (("demo.exemple.fr",), {"OS_ID_OVERRIDE": "alpine", "CODENAME_OVERRIDE": "x"}, "non pris en charge"),
+    (("demo.exemple.fr", "--data-dir"), {}, "--data-dir"),
+    (("demo.exemple.fr", "--data-dir", "relatif"), {}, "chemin absolu"),
+    (("demo.exemple.fr", "--data-dir", "/mnt/a b"), {}, "chemin absolu"),
 ])
 def test_bootstrap_refuses_bad_input_before_touching_anything(site, args, env, msg):
     r = bootstrap(site, *args, "--dry-run", env=env)

@@ -44,4 +44,5 @@
     <string name="offline_need_perm">Autorisez le micro puis réessayez.</string>
     <string name="offline_recording">Enregistrement en cours…</string>
     <string name="offline_finished">Terminé : envoi dès que le réseau revient.</string>
+    <string name="copy_no_picker">Aucun sélecteur de dossier n'est disponible sur cet appareil.</string>
 </resources>

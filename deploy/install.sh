@@ -1,19 +1,36 @@
 #!/usr/bin/env bash
 # Installe GMeeting sur ce serveur : prépare .env, construit l'image, démarre, vérifie.
-#   ./deploy/install.sh [DOMAINE] [--no-start] [--demo]
+#   ./deploy/install.sh [DOMAINE] [--no-start] [--demo] [--data-dir /chemin/absolu]
+#   --data-dir : conserve les données sur un disque DÉSIGNÉ (disque externe, autre partition) au lieu du volume Docker par défaut (voir docs/STOCKAGE.md)
 #   --demo : serveur de DÉMONSTRATION (relecteurs Google Play, essais) : conservation 1 jour, audio supprimé, fichier DEMO_ACCESS.txt prêt à coller dans la console
 # Variables optionnelles : ANTHROPIC_API_KEY (sinon demandée), OPENAI_API_KEY, GMEETING_PASSWORD (sinon généré).
 # Idempotent : relancer ne modifie pas un .env existant, sauf pour les valeurs fournies.
 source "$(dirname "$0")/lib.sh"
 
-DOMAIN_ARG="" ; START=1 ; DEMO=0
-for a in "$@"; do case "$a" in --no-start) START=0 ;; --demo) DEMO=1 ;; -*) fail "option inconnue : $a" ;; *) DOMAIN_ARG="$a" ;; esac; done
+DOMAIN_ARG="" ; START=1 ; DEMO=0 ; DATA_DIR_ARG="" ; NEXT=""
+for a in "$@"; do if [ "$NEXT" = data ]; then DATA_DIR_ARG="$a"; NEXT=""; continue; fi; case "$a" in --no-start) START=0 ;; --demo) DEMO=1 ;; --data-dir) NEXT=data ;; -*) fail "option inconnue : $a" ;; *) DOMAIN_ARG="$a" ;; esac; done
 
+[ "$NEXT" = data ] && fail "--data-dir demande un chemin absolu (ex. --data-dir /mnt/disque/gmeeting)"
 [ "$START" = 1 ] && need_docker
 [ -f .env ] || { cp .env.example .env; chmod 600 .env; say "→ .env créé à partir de .env.example"; }
 chmod 600 .env
 
 [ -n "$DOMAIN_ARG" ] && set_env DOMAIN "$DOMAIN_ARG"
+
+# Disque désigné pour les données
+if [ -n "$DATA_DIR_ARG" ]; then
+  case "$DATA_DIR_ARG" in /*) ;; *) fail "--data-dir : le chemin doit être absolu (commence par /) : $DATA_DIR_ARG" ;; esac
+  case "$DATA_DIR_ARG" in *[[:space:]]*|*[\'\"\$\`]*) fail "--data-dir : le chemin ne doit contenir ni espace ni guillemet ni \$ : $DATA_DIR_ARG" ;; esac
+  [ "$DATA_DIR_ARG" != "/" ] || fail "--data-dir : choisissez un dossier dédié, pas la racine."
+  mkdir -p "$DATA_DIR_ARG" || fail "impossible de créer $DATA_DIR_ARG (droits ? disque monté ?)"
+  if [ -n "$(ls -A "$DATA_DIR_ARG" 2>/dev/null)" ] && [ ! -f "$DATA_DIR_ARG/gmeeting.db" ]; then fail "$DATA_DIR_ARG n'est pas vide et ne contient pas de données GMeeting : choisissez un dossier vide."; fi
+  # le conteneur s'exécute sous l'utilisateur 10001 (jamais root) : il doit pouvoir écrire dans ce dossier
+  if [ "$(id -u)" = 0 ]; then chown 10001:10001 "$DATA_DIR_ARG" && chmod 700 "$DATA_DIR_ARG"
+  else say "⚠ Pas en administrateur : donnez le dossier à l'utilisateur 10001 :  sudo chown 10001:10001 $DATA_DIR_ARG && sudo chmod 700 $DATA_DIR_ARG"; fi
+  case "$(stat -f -c %T "$DATA_DIR_ARG" 2>/dev/null || echo ?)" in nfs*|cifs|smb*|fuse*|9p|ncpfs) say "⚠ $DATA_DIR_ARG est sur un partage réseau ou un système de fichiers virtuel : SQLite (la base) peut s'y corrompre. Préférez un disque local (ext4, xfs…)." ;; esac
+  set_env GMEETING_DATA "$DATA_DIR_ARG"
+  say "→ Données conservées dans : $DATA_DIR_ARG"
+fi
 [ -n "${OPENAI_API_KEY:-}" ] && set_env OPENAI_API_KEY "$OPENAI_API_KEY"
 
 if [ -z "$(get_env ANTHROPIC_API_KEY)" ]; then

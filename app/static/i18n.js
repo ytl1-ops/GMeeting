@@ -169,6 +169,14 @@
     "Ajoutez une mention de confidentialité sur tous vos documents : ": "Add a confidentiality notice to all your documents: ",
     "Sur ce téléphone": "On this phone",
     " Protéger l'écran : masquer l'aperçu dans les applications récentes et bloquer les captures d'écran": " Protect the screen: hide the preview in recent apps and block screenshots",
+    "Par défaut, elles sont sur le disque du serveur ; l'administrateur peut désigner un autre disque, et envoyer des sauvegardes chiffrées vers un cloud de son choix. Le téléphone peut en plus garder une copie de l'audio dans un dossier que vous désignez (voir plus bas).":
+      "By default they are on the server's disk; the administrator can designate another disk and send encrypted backups to a cloud of their choice. The phone can also keep a copy of the audio in a folder you designate (see below).",
+    "Copie de l'audio sur ce téléphone": "Audio copy on this phone",
+    "Pour garder aussi l'audio sur le téléphone (mémoire, carte SD, dossier synchronisé avec un cloud), désignez un dossier : chaque minute enregistrée y est copiée en .m4a, en plus de l'envoi à votre serveur. Ces copies ne sont pas chiffrées : protégez ce dossier.":
+      "To also keep the audio on the phone (storage, SD card, folder synced with a cloud), designate a folder: each recorded minute is copied there as .m4a, in addition to being sent to your server. These copies are not encrypted: protect this folder.",
+    "Aucune copie sur le téléphone.": "No copy on the phone.",
+    "La dernière copie a échoué : le dossier existe-t-il encore ? Désignez-le à nouveau.": "The last copy failed: does the folder still exist? Designate it again.",
+    "Changer de dossier": "Change folder", "Choisir un dossier": "Choose a folder", "Ne plus copier": "Stop copying",
     "Vos droits": "Your rights",
     "Vous pouvez supprimer une réunion depuis sa fiche. Pour une demande d'accès, de rectification ou d'effacement concernant une personne, adressez-vous à l'administrateur du serveur.":
       "You can delete a meeting from its page. For an access, rectification or erasure request concerning a person, contact the server administrator.",
@@ -217,6 +225,7 @@
     [/^Sous-titres '([\s\S]*)' trouvés, récupération du texte…$/, (m) => `Subtitles '${m[1]}' found, retrieving the text…`],
     [/^Transcription locale… (\d+) %$/, (m) => `Local transcription… ${m[1]}%`],
     [/^Transcription… segment (\d+)\/(\d+)$/, (m) => `Transcription… segment ${m[1]}/${m[2]}`],
+    [/^Copie dans le dossier : ([\s\S]*)$/, (m) => `Copy in folder: ${m[1]}`],
     [/^Les réunions sont supprimées automatiquement après (\d+) jours\.$/, (m) => `Meetings are automatically deleted after ${m[1]} days.`],
     [/^Fichier trop volumineux \(max (\d+) Mo\)$/, (m) => `File too large (max ${m[1]} MB)`],
     [/^Trop de pièces jointes \(maximum (\d+) par réunion\)\.$/, (m) => `Too many attachments (maximum ${m[1]} per meeting).`],

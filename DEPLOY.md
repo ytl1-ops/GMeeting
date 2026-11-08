@@ -185,3 +185,6 @@ refusée, mot de passe non généré (script interrompu en silence), extrait Cad
 
 ## Serveur de démonstration (relecteurs Google Play, essais, démos)
 Préparation d'un serveur neuf en une commande, vérification à distance et texte d'accès pour la Play Console : [`docs/SERVEUR_DEMO.md`](docs/SERVEUR_DEMO.md) (`deploy/bootstrap-vps.sh`, `deploy/check-server.sh`, `install.sh --demo`).
+
+## Emplacement des données et sauvegardes dans un cloud
+Disque désigné pour les données (`--data-dir`), sauvegardes chiffrées vers le cloud de votre choix (`backup-cloud.sh`, `restore-cloud.sh`), copie de l'audio sur le téléphone : [`docs/STOCKAGE.md`](docs/STOCKAGE.md).

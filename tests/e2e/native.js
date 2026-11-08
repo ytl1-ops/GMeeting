@@ -22,6 +22,10 @@ const FAKE = () => {
     mark: () => log('mark'),
     cancel: () => { s({ state: 'idle', calls: [] }); },
     finish: (j) => { const o = g(); o.state = 'idle'; o.finish = j; s(o); log('finish'); },
+    copyFolderStatus: () => JSON.stringify({ name: sessionStorage.getItem('copyfolder') || '', failed: sessionStorage.getItem('copyfail') === '1' }),
+    chooseCopyFolder: () => { log('choose'); setTimeout(() => { sessionStorage.setItem('copyfolder', 'Carte SD'); window.dispatchEvent(new Event('gmeeting-copy-folder')); }, 50); },
+    clearCopyFolder: () => { log('clear'); sessionStorage.removeItem('copyfolder'); },
+    isSecureScreen: () => sessionStorage.getItem('secure') !== '0', setSecureScreen: (on) => { log('secure:' + on); sessionStorage.setItem('secure', on ? '1' : '0'); },
     state: () => { const o = g(); const el = o.state === 'recording' ? o.acc + (Date.now() - o.t) / 1000 : o.acc;
       return JSON.stringify({ state: o.state, elapsed: Math.round(el), level: 0.3, id: o.id || null, error: null }); },
   };
@@ -74,6 +78,18 @@ const FAKE = () => {
   ok(await p.locator('.att-list li').count() === 2, 'pièces partagées rattachées (2)');
   ok(await p.evaluate(() => location.hash === '#/' || location.hash === ''), 'adresse nettoyée après import');
 
+  // dossier désigné sur le téléphone (page Confidentialité) : choisir, voir, ne plus copier, signaler un échec, et en anglais
+  await p.goto(B + '/#/privacy'); await p.waitForSelector("text=Copie de l'audio sur ce téléphone");
+  ok(await p.locator('text=Aucune copie sur le téléphone.').count() === 1, 'dossier désigné : aucune copie par défaut');
+  await p.click('text=Choisir un dossier'); await p.waitForSelector('text=Copie dans le dossier : Carte SD');
+  ok((await calls()).includes('choose') && await p.locator('text=Changer de dossier').count() === 1, 'dossier désigné : choix transmis au système, état mis à jour');
+  await p.click('text=Ne plus copier'); await p.waitForSelector('text=Aucune copie sur le téléphone.');
+  ok((await calls()).includes('clear'), 'dossier désigné : « Ne plus copier » transmis');
+  await p.evaluate(() => sessionStorage.setItem('copyfail', '1')); await p.reload(); await p.waitForSelector('text=La dernière copie a échoué');
+  ok(true, 'dossier désigné : échec de copie signalé');
+  await p.evaluate(() => { sessionStorage.removeItem('copyfail'); localStorage.setItem('gm_lang', 'en'); }); await p.reload(); await p.waitForSelector('text=Audio copy on this phone');
+  ok(await p.locator('text=Choose a folder').count() === 1 && await p.locator('text=No copy on the phone.').count() === 1, 'dossier désigné : textes en anglais');
+  await p.evaluate(() => localStorage.removeItem('gm_lang'));
   ok(errs.length === 0, 'aucune erreur JavaScript' + (errs.length ? ' : ' + errs[0] : ''));
   await b.close();
   console.log(fails ? `${fails} ÉCHEC(S)` : 'TOUS LES TESTS PASSENT'); process.exit(fails ? 1 : 0);

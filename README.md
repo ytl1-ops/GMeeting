@@ -155,6 +155,9 @@ native (non fournie). Hors-ligne, l'audio n'existe que sur l'appareil jusqu'à l
 navigateurs, notamment Safari, purgent les données d'un site peu utilisé ; l'application installée est mieux protégée),
 et gardez de la place (≈ 30-60 Mo par heure). Un avertissement s'affiche si l'espace est faible.
 
+## Où sont conservées vos données
+Trois rôles, trois emplacements désignés par vous : **disque du PC ou du serveur** (`./deploy/install.sh --data-dir /chemin`), **cloud** pour des sauvegardes chiffrées avant l'envoi (`./deploy/backup-cloud.sh`), **dossier du téléphone** pour une copie de l'audio (page Confidentialité de l'application). Détails, précautions et niveau de preuve : [`docs/STOCKAGE.md`](docs/STOCKAGE.md).
+
 ## Protection des données personnelles
 Les réunions contiennent des voix, des noms et des propos : GMeeting est conçu pour qu'ils restent chez vous (serveur auto-hébergé, aucune télémétrie, aucune publicité).
 - Page **« 🔒 Confidentialité »** dans l'application : l'état réel de *votre* serveur (transcription locale ou non, IA configurée ou non, conservation, mot de passe, HTTPS).

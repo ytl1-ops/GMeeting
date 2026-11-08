@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Prépare un serveur NEUF (Ubuntu ou Debian) et y installe GMeeting en HTTPS : Docker, pare-feu, mises à jour de sécurité automatiques, puis deploy/install.sh.
-#     sudo ./deploy/bootstrap-vps.sh DOMAINE [--demo] [--dry-run]
+#     sudo ./deploy/bootstrap-vps.sh DOMAINE [--demo] [--data-dir /chemin/absolu] [--dry-run]
 #   DOMAINE   nom déjà pointé vers l'adresse IP du serveur (enregistrement DNS « A ») : Caddy en tire le certificat HTTPS
 #   --demo    serveur de démonstration (relecteurs Google Play) : données effacées après 1 jour, fichier DEMO_ACCESS.txt
+#   --data-dir données sur un disque DÉSIGNÉ (volume de bloc, disque monté…) au lieu du volume Docker par défaut : docs/STOCKAGE.md
 #   --dry-run affiche ce qui serait fait, sans rien modifier (essayez-le d'abord)
 # Variables optionnelles transmises à l'installeur : ANTHROPIC_API_KEY, OPENAI_API_KEY, GMEETING_PASSWORD.
 # Ce script ne se connecte à aucun service de votre compte : il tourne sur le serveur, lancé par vous.
@@ -11,8 +12,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 say()  { printf '\033[1m%s\033[0m\n' "$*"; }
 fail() { printf '\033[31mErreur : %s\033[0m\n' "$*" >&2; exit 1; }
 
-DOMAIN=""; DEMO=0; DRY=0
-for a in "$@"; do case "$a" in --demo) DEMO=1 ;; --dry-run) DRY=1 ;; -*) fail "option inconnue : $a" ;; *) DOMAIN="$a" ;; esac; done
+DOMAIN=""; DEMO=0; DRY=0; DATADIR=""; NEXT=""
+for a in "$@"; do if [ "$NEXT" = data ]; then DATADIR="$a"; NEXT=""; continue; fi; case "$a" in --demo) DEMO=1 ;; --dry-run) DRY=1 ;; --data-dir) NEXT=data ;; -*) fail "option inconnue : $a" ;; *) DOMAIN="$a" ;; esac; done
+[ "$NEXT" = data ] && fail "--data-dir demande un chemin absolu"
+[ -z "$DATADIR" ] || [[ "$DATADIR" =~ ^/[A-Za-z0-9_./-]+$ ]] || fail "--data-dir : chemin absolu attendu, sans espace ni caractère spécial : $DATADIR"
 [ -n "$DOMAIN" ] || fail "indiquez le nom de domaine : sudo ./deploy/bootstrap-vps.sh reunions.exemple.fr"
 [[ "$DOMAIN" =~ ^([A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,}$ ]] || fail "nom de domaine invalide : $DOMAIN"
 
@@ -65,7 +68,7 @@ run ufw allow 443/tcp
 run ufw --force enable
 
 say "→ Installation de GMeeting ($DOMAIN)"
-ARGS=("$DOMAIN"); [ "$DEMO" = 1 ] && ARGS+=(--demo)
+ARGS=("$DOMAIN"); [ "$DEMO" = 1 ] && ARGS+=(--demo); [ -n "$DATADIR" ] && ARGS+=(--data-dir "$DATADIR")
 if [ "$DRY" = 1 ]; then printf '   [dry-run] %s/deploy/install.sh %s\n' "$ROOT" "${ARGS[*]}"
 else "$ROOT/deploy/install.sh" "${ARGS[@]}"; fi
 

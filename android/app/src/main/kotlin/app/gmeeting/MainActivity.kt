@@ -53,7 +53,7 @@ class MainActivity : Activity() {
             setSupportMultipleWindows(false)
         }
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, false)
-        web.addJavascriptInterface(NativeBridge(this, { trustedPage }, { askPermissions() }, { secureOn() }, { on -> getSharedPreferences("ui", MODE_PRIVATE).edit().putBoolean("secure", on).apply(); runOnUiThread { applySecure(on) } }), "GMeetingNative")
+        web.addJavascriptInterface(NativeBridge(this, { trustedPage }, { askPermissions() }, { secureOn() }, { on -> getSharedPreferences("ui", MODE_PRIVATE).edit().putBoolean("secure", on).apply(); runOnUiThread { applySecure(on) } }, { pickCopyFolder() }), "GMeetingNative")
         web.webViewClient = client()
         web.webChromeClient = chrome()
         web.setDownloadListener(download())
@@ -68,6 +68,12 @@ class MainActivity : Activity() {
     private fun secureOn() = getSharedPreferences("ui", MODE_PRIVATE).getBoolean("secure", !BuildConfig.DEBUG)
     private fun applySecure(on: Boolean) {
         if (on) window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE) else window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+    }
+
+    /** Sélecteur du système : l'utilisateur désigne le dossier (téléphone, carte SD, dossier synchronisé avec un cloud) qui recevra la copie de l'audio. */
+    private fun pickCopyFolder() = runOnUiThread {
+        val i = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+        try { startActivityForResult(i, REQ_TREE) } catch (e: Exception) { Toast.makeText(this, getString(R.string.copy_no_picker), Toast.LENGTH_LONG).show() }
     }
 
     private fun load(i: Intent?) {
@@ -199,6 +205,15 @@ class MainActivity : Activity() {
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(req: Int, res: Int, data: Intent?) {
         super.onActivityResult(req, res, data)
+        if (req == REQ_TREE) {
+            val uri = data?.data
+            if (res == RESULT_OK && uri != null) {
+                runCatching { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION) }
+                LocalCopy.set(this, uri)
+                if (cfg != null) web.evaluateJavascript("window.dispatchEvent(new Event('gmeeting-copy-folder'))", null)
+            }
+            return
+        }
         if (req == REQ_FILE) {
             val r = if (res == RESULT_OK && data != null) android.webkit.WebChromeClient.FileChooserParams.parseResult(res, data) else null
             chooser?.onReceiveValue(r); chooser = null
@@ -218,5 +233,6 @@ class MainActivity : Activity() {
         private const val REQ_FILE = 11
         private const val REQ_PERM = 12
         private const val REQ_STORAGE = 13
+        private const val REQ_TREE = 14
     }
 }

@@ -15,6 +15,7 @@ class NativeBridge(
     private val askPermissions: () -> Unit,
     private val readSecure: () -> Boolean = { true },
     private val writeSecure: (Boolean) -> Unit = {},
+    private val pickCopyFolder: () -> Unit = {},
 ) {
     private val gson = Gson()
 
@@ -40,6 +41,12 @@ class NativeBridge(
     /** Écran protégé : aperçu masqué dans les applications récentes et captures d'écran bloquées (réglage mémorisé, activé par défaut). */
     @JavascriptInterface fun isSecureScreen(): Boolean = isTrusted() && readSecure()
     @JavascriptInterface fun setSecureScreen(on: Boolean) { if (isTrusted()) writeSecure(on) }
+
+    /** Copie facultative de l'audio dans un dossier désigné du téléphone : {"name":"…","failed":false} (name vide = désactivée). */
+    @JavascriptInterface fun copyFolderStatus(): String =
+        if (!isTrusted()) "{}" else gson.toJson(mapOf("name" to LocalCopy.label(ctx), "failed" to LocalCopy.failed(ctx)))
+    @JavascriptInterface fun chooseCopyFolder() { if (isTrusted()) pickCopyFolder() }
+    @JavascriptInterface fun clearCopyFolder() { if (isTrusted()) LocalCopy.clear(ctx) }
 
     @JavascriptInterface fun pause() { if (isTrusted()) RecordingService.send(ctx, RecordingService.ACTION_PAUSE) }
     @JavascriptInterface fun resume() { if (isTrusted()) RecordingService.send(ctx, RecordingService.ACTION_RESUME) }
