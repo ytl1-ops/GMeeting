@@ -25,7 +25,8 @@ if [ -n "$DATA_DIR_ARG" ]; then
   mkdir -p "$DATA_DIR_ARG" || fail "impossible de créer $DATA_DIR_ARG (droits ? disque monté ?)"
   if [ -n "$(ls -A "$DATA_DIR_ARG" 2>/dev/null)" ] && [ ! -f "$DATA_DIR_ARG/gmeeting.db" ]; then fail "$DATA_DIR_ARG n'est pas vide et ne contient pas de données GMeeting : choisissez un dossier vide."; fi
   # le conteneur s'exécute sous l'utilisateur 10001 (jamais root) : il doit pouvoir écrire dans ce dossier
-  if [ "$(id -u)" = 0 ]; then chown 10001:10001 "$DATA_DIR_ARG" && chmod 700 "$DATA_DIR_ARG"
+  chmod 700 "$DATA_DIR_ARG" 2>/dev/null || true           # données de réunions : lecture réservée au propriétaire (le conteneur, sous 10001)
+  if [ "$(id -u)" = 0 ]; then chown 10001:10001 "$DATA_DIR_ARG"
   else say "⚠ Pas en administrateur : donnez le dossier à l'utilisateur 10001 :  sudo chown 10001:10001 $DATA_DIR_ARG && sudo chmod 700 $DATA_DIR_ARG"; fi
   case "$(stat -f -c %T "$DATA_DIR_ARG" 2>/dev/null || echo ?)" in nfs*|cifs|smb*|fuse*|9p|ncpfs) say "⚠ $DATA_DIR_ARG est sur un partage réseau ou un système de fichiers virtuel : SQLite (la base) peut s'y corrompre. Préférez un disque local (ext4, xfs…)." ;; esac
   set_env GMEETING_DATA "$DATA_DIR_ARG"

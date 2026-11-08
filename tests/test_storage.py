@@ -161,7 +161,7 @@ def test_designated_disk_is_created_owned_by_the_container_user_and_recorded(sit
     disk = tmp_path / "disque-pc"
     r = install(site, "d.exemple.fr", "--data-dir", str(disk))
     assert r.returncode == 0, r.stderr
-    assert disk.is_dir() and stat.S_IMODE(disk.stat().st_mode) == 0o700
+    assert disk.is_dir() and stat.S_IMODE(disk.stat().st_mode) == 0o700                       # lecture réservée au propriétaire, avec ou sans droits administrateur
     if os.getuid() == 0:
         assert disk.stat().st_uid == 10001                                                    # le conteneur n'est jamais root
     assert f"GMEETING_DATA={disk}" in (site / ".env").read_text()
