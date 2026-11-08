@@ -36,7 +36,7 @@ def fw(tmp_path):
     rules = tmp_path / "rules"; rules.write_text("\n".join(ORACLE_RULES) + "\n")
     marker = tmp_path / "saved"
     (bin_ / "netfilter-persistent").write_text(f'#!/usr/bin/env bash\necho "$@" >> "{marker}"\n'); (bin_ / "netfilter-persistent").chmod(0o755)
-    env = dict(os.environ, PATH=f"{bin_}:{os.environ['PATH']}", RULES_FILE=str(rules))
+    env = dict(os.environ, PATH=f"{bin_}:{os.environ['PATH']}", RULES_FILE=str(rules), GMEETING_ALLOW_NONROOT="1")      # la CI ne tourne pas en administrateur
     return type("F", (), {"rules": rules, "env": env, "marker": marker, "bin": bin_})()
 
 
