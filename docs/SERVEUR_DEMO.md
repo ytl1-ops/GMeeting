@@ -17,7 +17,7 @@ Il sert à trois choses : **essayer la version publiée** de l'application (qui 
 
 **Réserves sur Oracle**
 - **Reprise d'une machine inactive** : d'après des [sources tierces](https://braindetox.kr/en/posts/oracle_always_free_backend_2026.html), une machine sous environ 20 % d'utilisation (processeur, réseau et, en ARM, mémoire) pendant 7 jours peut être arrêtée ou reprise. Un serveur de démonstration est précisément dans ce cas. Le passage à « Pay As You Go » (toujours gratuit dans les limites) l'éviterait : à vérifier.
-- **Architecture ARM** : le contrôle `docker-arm64` de la CI construit l'image pour ARM64 (émulée), la démarre en mode durci et exporte les quatre formats de documents ; il se lance quand `Dockerfile` ou `requirements.txt` changent. Tant qu'il n'est pas vert, ne comptez pas sur ARM.
+- **Architecture ARM** : le contrôle `docker-arm64` de la CI construit l'image pour ARM64 (émulée par QEMU), la démarre en mode durci (non-root, système de fichiers en lecture seule), vérifie ffmpeg et son encodeur audio, et exporte les quatre formats de documents. **Il est vert** (construction ≈ 9 minutes en émulation). Il se relance quand `Dockerfile` ou `requirements.txt` changent. Limite : c'est une émulation sur processeur x86, pas un vrai serveur ARM ; la vitesse et la transcription locale n'y sont pas mesurées.
 - **Nom de domaine gratuit** : un sous-domaine de type DuckDNS suffit (`check-server.sh` vérifie le certificat dessus comme sur un domaine acheté).
 - **Disque** : sur Oracle, un volume de bloc peut être désigné comme disque des données (`--data-dir`, voir `docs/STOCKAGE.md`).
 - **Si le gratuit bloque** (capacité, inactivité), un serveur payant à quelques euros par mois pendant la durée de la revue est plus fiable : un refus pour serveur injoignable coûte plus cher en temps.
@@ -88,6 +88,6 @@ Il sert à trois choses : **essayer la version publiée** de l'application (qui 
 | `bootstrap-vps.sh` en simulation : plan complet, SSH autorisé avant d'activer le pare-feu, refus d'un domaine invalide ou d'un système non pris en charge | testé automatiquement |
 | `check-server.sh` : serveur protégé accepté ; mot de passe faux, serveur ouvert, HTTP, serveur injoignable refusés | testé contre de vrais serveurs locaux |
 | Image Docker durcie et démarrage avec Caddy | vérifiés en CI (job `docker`, en x86) |
-| Image pour **ARM64** (construction, démarrage, exports PDF / Word / Excel / PowerPoint) | contrôle `docker-arm64` en CI ; **résultat à lire dans la PR** |
+| Image pour **ARM64** (construction, démarrage durci, ffmpeg, exports PDF / Word / Excel / PowerPoint) | vérifiée en CI par émulation (**vert**) ; jamais sur un vrai serveur ARM |
 | **Exécution réelle de `bootstrap-vps.sh`** (installation de Docker, `ufw`, mises à jour automatiques) sur un serveur Ubuntu / Debian | **jamais essayée** : demande un serveur |
 | **Obtention du certificat HTTPS** par Caddy sur un vrai domaine, contrôle HSTS en HTTPS | **jamais essayés** |
