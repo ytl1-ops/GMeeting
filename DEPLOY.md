@@ -182,3 +182,6 @@ refusée, mot de passe non généré (script interrompu en silence), extrait Cad
 - L'émission d'un **vrai certificat Let's Encrypt** (nécessite votre domaine, ports 80/443 joignables) ; seul le certificat local de Caddy a été essayé.
 - Les **sauvegardes planifiées par cron** et la copie chiffrée hors serveur (à tester chez vous, § 6).
 - La charge réelle (nombre d'utilisateurs, très longues réunions) et le dimensionnement du serveur : les chiffres du § 1 sont des ordres de grandeur.
+
+## Serveur de démonstration (relecteurs Google Play, essais, démos)
+Préparation d'un serveur neuf en une commande, vérification à distance et texte d'accès pour la Play Console : [`docs/SERVEUR_DEMO.md`](docs/SERVEUR_DEMO.md) (`deploy/bootstrap-vps.sh`, `deploy/check-server.sh`, `install.sh --demo`).

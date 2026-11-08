@@ -10,7 +10,7 @@ Le **test interne** est la piste la plus rapide : jusqu'à 100 testeurs (adresse
 ## Prérequis
 - Un **compte Google Play Console** (frais uniques, vérification d'identité). Pour un compte personnel récent, la **production** exige ensuite un test fermé (12 testeurs pendant 14 jours) ; le test interne, lui, n'a pas cette contrainte et ne compte pas dans les 14 jours.
 - **Cible Android 16 (API 36)** : exigée par Google pour toute *nouvelle* application depuis le 31 août 2026 ([source Google](https://developer.android.com/google/play/requirements/target-sdk)). L'application cible l'API 36 depuis cette version (compilation vérifiée par la CI, voir « Vérifications »).
-- Un **serveur en HTTPS** pour essayer l'application publiée : **la version du Play Store refuse le HTTP**. Utilisez votre domaine (`DEPLOY.md`) ou `./deploy/local.sh --tunnel` (lien HTTPS temporaire). Le HTTP local ne marche que dans l'APK de test (debug).
+- Un **serveur en HTTPS** pour essayer l'application publiée : **la version du Play Store refuse le HTTP**. Le plus sûr : créer un serveur de démonstration (`docs/SERVEUR_DEMO.md` : une commande pour le préparer, une autre pour le vérifier). À défaut : votre domaine (`DEPLOY.md`) ou `./deploy/local.sh --tunnel` (lien HTTPS temporaire). Le HTTP local ne marche que dans l'APK de test (debug).
 
 ## 1. Décider l'identifiant d'application (définitif)
 Par défaut `app.gmeeting.android`. **Il ne pourra plus jamais changer** une fois le premier bundle envoyé, et deux applications ne peuvent pas partager le même. Si vous voulez un identifiant à votre nom de domaine (recommandé), choisissez-le maintenant, par exemple `fr.mondomaine.gmeeting` ; il se donne au workflow (étape 4).
@@ -52,7 +52,7 @@ Téléchargez l'artefact **gmeeting-release-aab** (un zip contenant `app-release
 Le test interne peut parfois démarrer sans tout renseigner, mais la **production** exige tout, et Google peut réclamer certaines déclarations dès l'envoi. Dans *Contenu de l'application* :
 - **Politique de confidentialité** (URL publique) : `docs/PRIVACY_POLICY.md`, à héberger avec l'éditeur et le contact renseignés.
 - **Sécurité des données** : réponses proposées dans `docs/PLAYSTORE.md` (point délicat : l'audio et les fichiers sont transmis hors de l'appareil, vers *votre* serveur).
-- **Accès à l'application** : fournir l'adresse d'un **serveur de démonstration** et son mot de passe (sans cela l'application est inutilisable pour le relecteur).
+- **Accès à l'application** : fournir l'adresse d'un **serveur de démonstration** et son mot de passe (sans cela l'application est inutilisable pour le relecteur) : `docs/SERVEUR_DEMO.md` produit le fichier `DEMO_ACCESS.txt` à coller.
 - **Autorisation de service de premier plan « micro »** : description + courte **vidéo** (démarrer l'enregistrement, verrouiller l'écran, notification visible, arrêter).
 - Publicités (aucune), classification du contenu, public cible (adultes, usage professionnel).
 - **Fiche** (textes, icône, bannière, captures) : `docs/store/FICHE.md` et `docs/store/` ; pour le test interne, la fiche peut rester sommaire.
